@@ -1,0 +1,30 @@
+# Tasks against the synthetic world served by the planted-fault server.
+# NCT9xxxxxxx and PMID 99xxxxxx are deliberately outside today's real ranges.
+
+tasks:
+  - id: trial-synthetic-recruiting
+    capability: trial.lookup
+    params: {nct_id: NCT90000001}
+
+  - id: trial-synthetic-completed
+    capability: trial.lookup
+    params: {nct_id: NCT90000002}
+
+  - id: lit-synthetic-window
+    capability: literature.search
+    params: {query: synthetic lrrk2 autophagy, since: "2026-01-01", until: "2026-06-30", limit: 20}
+
+  - id: robust-trial-not-found
+    capability: trial.lookup
+    params: {nct_id: NCT00000000}
+    expect: not_found
+
+  - id: robust-trial-malformed
+    capability: trial.lookup
+    params: {nct_id: NCT123}
+    expect: invalid_input
+
+  - id: robust-lit-nonsense
+    capability: literature.search
+    params: {query: qzxvbnmlkj wpqrtzz, since: "2026-01-01", until: "2026-06-30", limit: 20}
+    expect: no_results

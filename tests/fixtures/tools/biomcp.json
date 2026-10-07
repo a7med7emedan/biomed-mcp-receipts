@@ -1,0 +1,763 @@
+{
+ "captured": "2026-10-07",
+ "protocol": "2026-07-28",
+ "server_info": {
+  "description": null,
+  "icons": null,
+  "name": "biomcp",
+  "title": null,
+  "version": "0.9.1",
+  "website_url": null
+ },
+ "tools": [
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+     "command": {
+      "type": "string"
+     },
+     "json": {
+      "default": false,
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "command"
+    ],
+    "title": "ShellCommand",
+    "type": "object"
+   },
+   "name": "biomcp",
+   "output_schema": null
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "all_species": {
+      "type": "boolean"
+     },
+     "article_type": {
+      "enum": [
+       "research-article",
+       "review",
+       "case-reports",
+       "meta-analysis"
+      ]
+     },
+     "author": {
+      "items": {
+       "maxLength": 256,
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+     },
+     "biomarker": {
+      "items": {
+       "maxLength": 256,
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+     },
+     "chromosome": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+     },
+     "condition": {
+      "items": {
+       "maxLength": 256,
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+     },
+     "consequence": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+     },
+     "cpic_level": {
+      "enum": [
+       "A",
+       "B",
+       "C",
+       "D"
+      ]
+     },
+     "criteria": {
+      "items": {
+       "maxLength": 256,
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+     },
+     "date_from": {
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "type": "string"
+     },
+     "date_to": {
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "type": "string"
+     },
+     "disease": {
+      "items": {
+       "maxLength": 256,
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 3,
+      "maxLength": 256,
+      "minItems": 1,
+      "minLength": 1,
+      "type": [
+       "string",
+       "array"
+      ],
+      "uniqueItems": true
+     },
+     "drug": {
+      "items": {
+       "maxLength": 256,
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 3,
+      "maxLength": 256,
+      "minItems": 1,
+      "minLength": 1,
+      "type": [
+       "string",
+       "array"
+      ],
+      "uniqueItems": true
+     },
+     "entity": {
+      "enum": [
+       "author",
+       "gene",
+       "pgx",
+       "gwas",
+       "article",
+       "trial",
+       "variant",
+       "protein"
+      ],
+      "type": "string"
+     },
+     "existence": {
+      "maximum": 5,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "gene": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+     },
+     "gene_type": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+     },
+     "hgvsp": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+     },
+     "intervention": {
+      "items": {
+       "maxLength": 256,
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+     },
+     "journal": {
+      "items": {
+       "maxLength": 256,
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+     },
+     "json": {
+      "default": false,
+      "type": "boolean"
+     },
+     "keyword": {
+      "items": {
+       "maxLength": 256,
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+     },
+     "limit": {
+      "default": 10,
+      "maximum": 25,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "max_frequency": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+     },
+     "mutation": {
+      "items": {
+       "maxLength": 256,
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+     },
+     "no_preprints": {
+      "type": "boolean"
+     },
+     "offset": {
+      "default": 0,
+      "maximum": 1000,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "open_access": {
+      "type": "boolean"
+     },
+     "p_value": {
+      "exclusiveMinimum": 0,
+      "maximum": 1,
+      "type": "number"
+     },
+     "phase": {
+      "enum": [
+       "NA",
+       "N/A",
+       "n/a",
+       "EARLY_PHASE1",
+       "early_phase1",
+       "early1",
+       "PHASE1",
+       "1",
+       "I",
+       "PHASE2",
+       "2",
+       "II",
+       "PHASE3",
+       "3",
+       "III",
+       "PHASE4",
+       "4",
+       "IV",
+       "PHASE1/PHASE2",
+       "1/2",
+       "I_II",
+       "PHASE2/PHASE3",
+       "2/3",
+       "II_III"
+      ]
+     },
+     "query": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+     },
+     "region": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+     },
+     "revel_min": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+     },
+     "review_status": {
+      "enum": [
+       "0",
+       "1",
+       "2",
+       "3",
+       "4",
+       "none",
+       "criteria_provided",
+       "expert_panel"
+      ]
+     },
+     "reviewed": {
+      "type": "boolean"
+     },
+     "significance": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+     },
+     "sort": {
+      "enum": [
+       "date",
+       "citations",
+       "relevance"
+      ]
+     },
+     "source": {
+      "enum": [
+       "semanticscholar",
+       "all",
+       "pubtator",
+       "europepmc",
+       "pubmed",
+       "litsense2",
+       "ctgov",
+       "nci"
+      ]
+     },
+     "status": {
+      "enum": [
+       "recruiting",
+       "not_yet_recruiting",
+       "enrolling_by_invitation",
+       "active_not_recruiting",
+       "completed",
+       "suspended",
+       "terminated",
+       "withdrawn"
+      ]
+     },
+     "trait": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "entity"
+    ],
+    "title": "TypedSearch",
+    "type": "object"
+   },
+   "name": "search",
+   "output_schema": null
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "assembly": {
+      "enum": [
+       "grch37",
+       "hg19",
+       "grch38",
+       "hg38"
+      ]
+     },
+     "entity": {
+      "enum": [
+       "gene",
+       "variant",
+       "article",
+       "author",
+       "trial",
+       "diagnostic",
+       "drug",
+       "disease",
+       "pgx",
+       "pathway",
+       "cell-line",
+       "protein",
+       "adverse-event"
+      ],
+      "type": "string"
+     },
+     "id": {
+      "maxLength": 512,
+      "minLength": 1,
+      "type": "string"
+     },
+     "json": {
+      "default": false,
+      "type": "boolean"
+     },
+     "sections": {
+      "items": {
+       "enum": [
+        "pathways",
+        "ontology",
+        "diseases",
+        "diagnostics",
+        "protein",
+        "go",
+        "interactions",
+        "civic",
+        "expression",
+        "hpa",
+        "druggability",
+        "clingen",
+        "gencc",
+        "constraint",
+        "disgenet",
+        "funding",
+        "all",
+        "predict",
+        "predictions",
+        "clinvar",
+        "population",
+        "population-details",
+        "conservation",
+        "cosmic",
+        "cgi",
+        "cbioportal",
+        "gwas",
+        "annotations",
+        "fulltext",
+        "tldr",
+        "indexing",
+        "assets",
+        "eligibility",
+        "contacts",
+        "locations",
+        "outcomes",
+        "arms",
+        "references",
+        "genes",
+        "conditions",
+        "methods",
+        "regulatory",
+        "label",
+        "safety",
+        "shortage",
+        "targets",
+        "indications",
+        "approvals",
+        "cell_lines",
+        "phenotypes",
+        "variants",
+        "models",
+        "prevalence",
+        "survival",
+        "clinical_features",
+        "recommendations",
+        "frequencies",
+        "guidelines",
+        "events",
+        "enrichment",
+        "xrefs",
+        "chembl",
+        "drug_response",
+        "domains",
+        "complexes",
+        "structures",
+        "reactions",
+        "concomitant",
+        "guidance"
+       ]
+      },
+      "maxItems": 16,
+      "type": "array"
+     },
+     "source": {
+      "default": "ctgov",
+      "enum": [
+       "ctgov",
+       "nci"
+      ]
+     }
+    },
+    "required": [
+     "entity",
+     "id"
+    ],
+    "title": "TypedGet",
+    "type": "object"
+   },
+   "name": "get",
+   "output_schema": null
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+     "inputs": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "type": "array"
+     }
+    },
+    "required": [
+     "inputs"
+    ],
+    "title": "TypedVariantCar",
+    "type": "object"
+   },
+   "name": "variant_normalize_car",
+   "output_schema": null
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "assertion_id": {
+      "type": "string"
+     },
+     "caid": {
+      "minLength": 1,
+      "type": "string"
+     },
+     "caids": {
+      "items": {
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "type": "array"
+     },
+     "detail": {
+      "type": "boolean"
+     },
+     "gene": {
+      "minLength": 1,
+      "type": "string"
+     },
+     "limit": {
+      "default": 25,
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "offset": {
+      "default": 0,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "version": {
+      "type": "string"
+     }
+    },
+    "title": "TypedVariantErepo",
+    "type": "object"
+   },
+   "name": "variant_erepo",
+   "output_schema": null
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+     "capture_id": {
+      "default": null,
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "files": {
+      "default": false,
+      "type": "boolean"
+     },
+     "gene": {
+      "type": "string"
+     },
+     "limit": {
+      "default": 25,
+      "format": "uint",
+      "maximum": 50,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "offset": {
+      "default": 0,
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "version_iri": {
+      "default": null,
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "gene"
+    ],
+    "title": "TypedGeneCspec",
+    "type": "object"
+   },
+   "name": "gene_cspec",
+   "output_schema": null
+  },
+  {
+   "input_schema": {
+    "$defs": {
+     "VariantArticleRequest": {
+      "additionalProperties": false,
+      "properties": {
+       "accession": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "alt": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "build": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "coding": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "gene": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "genomic": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "position": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       },
+       "protein": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "ref": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "request_id": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "rsid": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "transcript": {
+        "type": [
+         "string",
+         "null"
+        ]
+       }
+      },
+      "type": "object"
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+     "confirmed_only": {
+      "default": false,
+      "type": "boolean"
+     },
+     "debug_plan": {
+      "default": false,
+      "type": "boolean"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/$defs/VariantArticleRequest"
+      },
+      "maxItems": 10,
+      "minItems": 1,
+      "type": "array"
+     },
+     "limit": {
+      "default": 10,
+      "format": "uint",
+      "maximum": 50,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "offset": {
+      "default": 0,
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "strategy": {
+      "default": "union",
+      "enum": [
+       "union",
+       "annotation",
+       "lexical"
+      ],
+      "type": "string"
+     },
+     "verify_identity": {
+      "default": false,
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "title": "TypedVariantArticles",
+    "type": "object"
+   },
+   "name": "variant_articles",
+   "output_schema": null
+  }
+ ]
+}

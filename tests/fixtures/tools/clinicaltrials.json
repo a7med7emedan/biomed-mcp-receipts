@@ -1,0 +1,1757 @@
+{
+ "captured": "2026-10-07",
+ "protocol": "2026-07-28",
+ "server_info": {
+  "description": null,
+  "icons": null,
+  "name": "clinicaltrialsgov-mcp-server",
+  "title": "clinicaltrialsgov-mcp-server",
+  "version": "2.9.11",
+  "website_url": null
+ },
+ "tools": [
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "advancedFilter": {
+      "description": "Advanced filter using AREA[FieldName]value syntax. Examples: \"AREA[StudyType]INTERVENTIONAL\", \"AREA[EnrollmentCount]RANGE[100, 1000]\", \"AREA[Phase]PHASE2 AND AREA[StudyType]INTERVENTIONAL\", \"(AREA[Phase]PHASE3 OR AREA[Phase]PHASE4) AND AREA[StudyType]INTERVENTIONAL\". \"AREA[HasResults]true\" restricts to studies with posted results. AND/OR/NOT join complete AREA[FieldName]value expressions; parentheses group them. Call clinicaltrials_get_field_definitions to find AREA[]-compatible field names.",
+      "type": "string"
+     },
+     "conditionQuery": {
+      "description": "Condition/disease-specific search. E.g., \"Type 2 Diabetes\", \"non-small cell lung cancer\". Matches Condition, BriefTitle, OfficialTitle, ConditionMeshTerm, ConditionAncestorTerm, Keyword, and NCTId. ConditionAncestorTerm is the MeSH umbrella above the conditions a study itself lists, so results run broader than those lists \u2014 a study can match a parent term it never names. Plain words plus AND/OR/NOT. `[ ]` are valid only inside an AREA[FieldName]value or RANGE[min, max] expression, which this parameter accepts; a stray bracket fails. `( )` group sub-expressions when matched; `,` acts as AND.",
+      "type": "string"
+     },
+     "countTotal": {
+      "default": true,
+      "description": "Include total study count in response. Only computed on the first page.",
+      "type": "boolean"
+     },
+     "fields": {
+      "description": "PascalCase leaf names to return; strongly recommended since full records are ~70KB. Omit for the compact index projection \u2014 an empty list is rejected, not treated as omission. Common leaves: NCTId, BriefTitle, BriefSummary, OverallStatus, Phase, LeadSponsorName, Condition. Call clinicaltrials_get_field_definitions with a concept query (e.g., \"adverse events\", \"eligibility\") to find the exact leaf for any concept.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "geoFilter": {
+      "description": "Geographic proximity filter. Format: distance(lat,lon,radius), where radius carries a `mi` or `km` suffix \u2014 e.g. \"distance(47.6062,-122.3321,50mi)\" for studies within 50 miles of Seattle. The suffix is required: a radius with no unit is rejected, as are a non-positive radius, a latitude outside [-90, 90], and a longitude outside [-180, 180]. When set, each study's locations are re-sorted by proximity to the center so the nearest matched site leads, annotated with its distance in miles; the full location list is preserved.",
+      "type": "string"
+     },
+     "includeUnknownEnrollment": {
+      "default": false,
+      "description": "Include studies whose EnrollmentCount is the upstream \"unknown\" sentinel (99999999). Excluded by default \u2014 the sentinel pollutes RANGE[N, MAX] queries and EnrollmentCount:desc sorts. Set true for data-quality audits or when targeting unknown-enrollment studies specifically.",
+      "type": "boolean"
+     },
+     "interventionQuery": {
+      "description": "Intervention/treatment search. E.g., \"pembrolizumab\", \"cognitive behavioral therapy\". Matches InterventionName, InterventionType, ArmGroupType, InterventionOtherName, BriefTitle, OfficialTitle, ArmGroupLabel, InterventionMeshTerm, Keyword, InterventionAncestorTerm, InterventionDescription, and ArmGroupDescription. InterventionAncestorTerm is the MeSH umbrella above the interventions a study itself lists, so results run broader than those lists. Plain words plus AND/OR/NOT. `[ ]` are valid only inside an AREA[FieldName]value or RANGE[min, max] expression, which this parameter accepts; a stray bracket fails. `( )` group sub-expressions when matched; `,` acts as AND.",
+      "type": "string"
+     },
+     "locationQuery": {
+      "description": "Location search \u2014 city, state, country, or facility name. Matches LocationCity, LocationState, LocationCountry, LocationFacility, and LocationZip; a study matches when any of its sites does. Plain words plus AND/OR/NOT. `[ ]` are valid only inside an AREA[FieldName]value or RANGE[min, max] expression, which this parameter accepts; a stray bracket fails. `( )` group sub-expressions when matched; `,` acts as AND.",
+      "type": "string"
+     },
+     "nctIds": {
+      "anyOf": [
+       {
+        "description": "A single NCT ID.",
+        "pattern": "^NCT\\d{8}$",
+        "type": "string"
+       },
+       {
+        "description": "Multiple NCT IDs (OR).",
+        "items": {
+         "pattern": "^NCT\\d{8}$",
+         "type": "string"
+        },
+        "type": "array"
+       }
+      ],
+      "description": "Filter to specific NCT IDs for batch lookups. Omit to search every study \u2014 an empty list is rejected, not treated as \"no filter\". Supplying this lifts the default unknown-enrollment exclusion, so an ID you name is never filtered out of its own lookup."
+     },
+     "outcomeQuery": {
+      "description": "Search within outcome measure fields. Matches PrimaryOutcomeMeasure, SecondaryOutcomeMeasure, OtherOutcomeMeasure, and OutcomeMeasureTitle, plus their description counterparts PrimaryOutcomeDescription, SecondaryOutcomeDescription, OtherOutcomeDescription, OutcomeMeasureDescription, and OutcomeMeasurePopulationDescription \u2014 so a term appearing only in outcome prose still matches. Plain words plus AND/OR/NOT. `[ ]` are valid only inside an AREA[FieldName]value or RANGE[min, max] expression, which this parameter accepts; a stray bracket fails. `( )` group sub-expressions when matched; `,` acts as AND.",
+      "type": "string"
+     },
+     "pageSize": {
+      "default": 10,
+      "description": "Results per page, 1\u2013200.",
+      "maximum": 200,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "pageToken": {
+      "description": "Pagination cursor from a previous response.",
+      "type": "string"
+     },
+     "phaseFilter": {
+      "anyOf": [
+       {
+        "description": "A single phase value.",
+        "type": "string"
+       },
+       {
+        "description": "Multiple phase values (OR).",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       }
+      ],
+      "description": "Filter by trial phase. Omit to search all phases \u2014 an empty list is rejected, not treated as \"no filter\". Values: EARLY_PHASE1, PHASE1, PHASE2, PHASE3, PHASE4, NA."
+     },
+     "query": {
+      "description": "General free-text search across all fields. Runs the 57-field relevance search ClinicalTrials.gov publishes for this parameter \u2014 NCTId, NCTIdAlias, OrgStudyId, SecondaryId, Acronym, BriefTitle, OfficialTitle, Condition, InterventionName, InterventionOtherName, Phase, StdAge, StudyType, BriefSummary, outcome measures and their descriptions, LeadSponsorName, CollaboratorName, the Location* fields, the Design* fields, and the ConditionAncestorTerm/InterventionAncestorTerm MeSH umbrellas \u2014 so a hit need not carry your term in the field you had in mind. Plain words plus AND, OR, NOT. `[ ]` are valid only inside an AREA[FieldName]value or RANGE[min, max] expression \u2014 those work here as well as in advancedFilter, so AREA[Phase]PHASE2 is accepted in this parameter; a stray bracket fails. `( )` group sub-expressions and work when matched; `,` acts as AND. The dedicated *Query parameters (conditionQuery, interventionQuery, etc.) scope a search to one field.",
+      "type": "string"
+     },
+     "sort": {
+      "description": "Sort order. Format: FieldName:asc or FieldName:desc. E.g., \"LastUpdatePostDate:desc\", \"EnrollmentCount:desc\". Max 2 fields comma-separated. For \"largest trials\" queries, pair EnrollmentCount:desc with advancedFilter \"AREA[StudyType]INTERVENTIONAL\" \u2014 the top enrollment counts are observational registry/claims studies enrolling tens of millions. Enrollment counts are sponsor-reported and not validated upstream beyond the unknown-enrollment sentinel exclusion. Use clinicaltrials_get_field_definitions to find sortable field names.",
+      "type": "string"
+     },
+     "sponsorQuery": {
+      "description": "Sponsor/collaborator name search. Matches LeadSponsorName, CollaboratorName, and OrgFullName. Plain words plus AND/OR/NOT. `[ ]` are valid only inside an AREA[FieldName]value or RANGE[min, max] expression, which this parameter accepts; a stray bracket fails. `( )` group sub-expressions when matched; `,` acts as AND.",
+      "type": "string"
+     },
+     "statusFilter": {
+      "anyOf": [
+       {
+        "description": "A single status value.",
+        "type": "string"
+       },
+       {
+        "description": "Multiple status values (OR).",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       }
+      ],
+      "description": "Filter by study status. Omit to search all statuses \u2014 an empty list is rejected, not treated as \"no filter\". Values: RECRUITING, COMPLETED, ACTIVE_NOT_RECRUITING, NOT_YET_RECRUITING, ENROLLING_BY_INVITATION, SUSPENDED, TERMINATED, WITHDRAWN, UNKNOWN, WITHHELD, NO_LONGER_AVAILABLE, AVAILABLE, APPROVED_FOR_MARKETING, TEMPORARILY_NOT_AVAILABLE."
+     },
+     "titleQuery": {
+      "description": "Search within study titles and acronyms only. Matches Acronym, BriefTitle, and OfficialTitle. Plain words plus AND/OR/NOT. `[ ]` are valid only inside an AREA[FieldName]value or RANGE[min, max] expression, which this parameter accepts; a stray bracket fails. `( )` group sub-expressions when matched; `,` acts as AND.",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "name": "clinicaltrials_search_studies",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "studies"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `blank_value`: A parameter was supplied with a blank, whitespace-only, or empty-list value. `ids_not_found`: One or more NCT IDs in the nctIds filter are not present at ClinicalTrials.gov. `field_invalid`: A field name in the fields parameter or AREA[] expression is invalid (often a module name instead of a piece name). `enum_invalid`: statusFilter or phaseFilter contains a value ClinicalTrials.gov does not accept. `query_parse_error`: A free-text query or advancedFilter expression uses syntax the upstream Essie parser rejects \u2014 typically a `[` or `]` outside an AREA[\u2026] / RANGE[\u2026] expression, an unmatched `(` / `)`, or an unterminated quote in a query/conditionQuery/etc. value. `geo_invalid`: geoFilter is not a well-formed distance(lat,lon,radius) expression. `sort_invalid`: sort is not FieldName:asc / FieldName:desc, or names more than 2 fields. `rate_limited`: ClinicalTrials.gov returned 429 after retry budget exhausted. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "blank_value",
+           "ids_not_found",
+           "field_invalid",
+           "enum_invalid",
+           "query_parse_error",
+           "geo_invalid",
+           "sort_invalid",
+           "rate_limited"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "nextPageToken": {
+      "description": "Token for the next page. Absent when this response already carries every matching study; otherwise it mirrors the upstream cursor, which ClinicalTrials.gov emits whenever a page fills to pageSize \u2014 so on a continuation page a token can still lead to an empty page.",
+      "type": "string"
+     },
+     "notice": {
+      "description": "Recovery guidance when no studies matched \u2014 echoes the constraint and suggests how to broaden, and names nctIds as part of the unmatched criteria when an ID list was supplied. Absent on pages with results, and on an exhausted continuation page, where the cohort already matched and there is nothing to broaden.",
+      "type": "string"
+     },
+     "pageExhausted": {
+      "description": "True when this call supplied a pageToken and the continuation page came back empty \u2014 the walk is finished and no further pages exist. Absent on every other response, including an empty first page, which is an unmatched search rather than exhausted pagination.",
+      "type": "boolean"
+     },
+     "requestedFields": {
+      "description": "Echo of the explicit fields parameter \u2014 present only when the caller passed fields. Signals that studies carry the requested leaves at full fidelity (not the default compact index) and that the rendered truncation cap is lifted so all of them appear.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "searchCriteria": {
+      "additionalProperties": {},
+      "description": "Echo of active query/filter criteria applied to this search, including sentinelFilterActive when the default unknown-enrollment exclusion is in effect. Present on every response.",
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "studies": {
+      "description": "Matching studies. By default each entry is a COMPACT index projection \u2014 nctId, briefTitle, overallStatus, phases, enrollmentCount, leadSponsor, conditions, hasResults, startDate and primaryCompletionDate (YYYY-MM or YYYY-MM-DD, as registered), and a bounded locations summary ({ total, nearest }); keys the study does not publish are omitted \u2014 mirroring the rendered result, NOT the full ~70KB record. Pass the fields parameter to receive exactly the requested leaves at full fidelity instead (e.g. all locations). Fetch a full single record with clinicaltrials_get_study_record.",
+      "items": {
+       "additionalProperties": {},
+       "propertyNames": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "totalCount": {
+      "description": "Total matching studies (first page only when countTotal=true).",
+      "type": "number"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "locationLimit": {
+      "description": "Optional cap on the number of locations returned. Omit for no cap (full upstream list). Pairs naturally with nearLocation for narrowing a large multi-site trial. Original total preserved in filtersApplied.totalLocations only when the cap trims the list.",
+      "maximum": 500,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "nctId": {
+      "description": "NCT identifier \u2014 format `NCT` followed by 8 digits (e.g., `NCT03722472`).",
+      "pattern": "^NCT\\d{8}$",
+      "type": "string"
+     },
+     "nearLocation": {
+      "additionalProperties": false,
+      "description": "Filter returned locations to those within radius of (lat, lon) and sort by distance. Adds distanceMi to each location. Locations without published coordinates are dropped \u2014 most US sites carry them; international sites less reliably so. Distances reflect ClinicalTrials.gov geocoding granularity \u2014 typically city-centroid, not facility-level \u2014 so multiple sites in the same city resolve to near-identical distances. For broader geographic filtering across studies, use clinicaltrials_search_studies with geoFilter.",
+      "properties": {
+       "lat": {
+        "description": "Latitude in decimal degrees.",
+        "maximum": 90,
+        "minimum": -90,
+        "type": "number"
+       },
+       "lon": {
+        "description": "Longitude in decimal degrees.",
+        "maximum": 180,
+        "minimum": -180,
+        "type": "number"
+       },
+       "radiusMi": {
+        "default": 50,
+        "description": "Radius in miles. Default 50.",
+        "maximum": 500,
+        "minimum": 1,
+        "type": "number"
+       }
+      },
+      "required": [
+       "lat",
+       "lon"
+      ],
+      "type": "object"
+     },
+     "outcomeLimit": {
+      "description": "Optional cap on the number of secondary and other outcomes returned. Omit for no cap (full upstream lists). Primary outcomes are never capped. Original totals preserved in filtersApplied.totalSecondaryOutcomes / totalOtherOutcomes only when the cap trims a list.",
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "referenceLimit": {
+      "description": "Optional cap on the number of references returned. Omit for no cap (full upstream list). Original total preserved in filtersApplied.totalReferences only when the cap trims the list. seeAlsoLinks are never capped.",
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "nctId"
+    ],
+    "type": "object"
+   },
+   "name": "clinicaltrials_get_study_record",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "study",
+       "filtersApplied"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `study_not_found`: The provided NCT ID does not match any study at ClinicalTrials.gov. `rate_limited`: ClinicalTrials.gov returned 429 after retry budget exhausted. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "study_not_found",
+           "rate_limited"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "filtersApplied": {
+      "additionalProperties": false,
+      "description": "Metadata about the filtering applied to `study`.",
+      "properties": {
+       "locationLimit": {
+        "description": "Echo of the locationLimit input \u2014 present only when the cap trimmed the list.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "locationsWithoutGeo": {
+        "description": "Number of upstream locations dropped because they lacked geoPoint when nearLocation was provided.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "nearLocation": {
+        "additionalProperties": false,
+        "description": "Echo of the nearLocation input.",
+        "properties": {
+         "lat": {
+          "description": "Latitude in decimal degrees.",
+          "type": "number"
+         },
+         "lon": {
+          "description": "Longitude in decimal degrees.",
+          "type": "number"
+         },
+         "radiusMi": {
+          "description": "Radius in miles.",
+          "type": "number"
+         }
+        },
+        "required": [
+         "lat",
+         "lon",
+         "radiusMi"
+        ],
+        "type": "object"
+       },
+       "outcomeLimit": {
+        "description": "Echo of the outcomeLimit input \u2014 present only when the cap trimmed a list.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "referenceLimit": {
+        "description": "Echo of the referenceLimit input \u2014 present only when the cap trimmed the list.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "totalLocations": {
+        "description": "Upstream location count before any filter was applied.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "totalOtherOutcomes": {
+        "description": "Upstream other outcomes count before outcomeLimit was applied.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "totalReferences": {
+        "description": "Upstream reference count before referenceLimit was applied.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "totalSecondaryOutcomes": {
+        "description": "Upstream secondary outcomes count before outcomeLimit was applied.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       }
+      },
+      "type": "object"
+     },
+     "resultsSummary": {
+      "additionalProperties": false,
+      "description": "Compact counts of posted results, present when hasResults is true. The full resultsSection is intentionally omitted from this record-level tool \u2014 fetch it via clinicaltrials_get_study_results or the clinicaltrials://{nctId} resource.",
+      "properties": {
+       "baselineMeasures": {
+        "description": "Baseline characteristic measures.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "otherAdverseEvents": {
+        "description": "Distinct other (non-serious) adverse-event terms.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "outcomeMeasures": {
+        "description": "Posted outcome measures.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "participantFlowPeriods": {
+        "description": "Participant-flow periods.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "seriousAdverseEvents": {
+        "description": "Distinct serious adverse-event terms.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       }
+      },
+      "type": "object"
+     },
+     "study": {
+      "additionalProperties": {},
+      "description": "Full study record with caller-requested filters already applied to locations and outcomes. Top-level keys: protocolSection (identification, status, sponsor, conditions, design, arms/interventions, outcomes, eligibility, contacts/locations), derivedSection (MeSH-normalized terms), hasResults, documentSection. The heavy resultsSection is omitted \u2014 see resultsSummary for counts and clinicaltrials_get_study_results for full results data. Use clinicaltrials_get_field_definitions to explore the schema.",
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "advancedFilter": {
+      "description": "Advanced filter using AREA[FieldName]value syntax. Examples: \"AREA[StudyType]INTERVENTIONAL\", \"AREA[EnrollmentCount]RANGE[100, 1000]\", \"AREA[Phase]PHASE2 AND AREA[StudyType]INTERVENTIONAL\", \"(AREA[Phase]PHASE3 OR AREA[Phase]PHASE4) AND AREA[StudyType]INTERVENTIONAL\". AND/OR/NOT join complete AREA[FieldName]value expressions; parentheses group them. Call clinicaltrials_get_field_definitions to find AREA[]-compatible field names.",
+      "type": "string"
+     },
+     "conditionQuery": {
+      "description": "Condition/disease-specific search. E.g., \"Type 2 Diabetes\", \"non-small cell lung cancer\". Matches Condition, BriefTitle, OfficialTitle, ConditionMeshTerm, ConditionAncestorTerm, Keyword, and NCTId. ConditionAncestorTerm is the MeSH umbrella above the conditions a study itself lists, so results run broader than those lists \u2014 a study can match a parent term it never names. Plain words plus AND/OR/NOT. `[ ]` are valid only inside an AREA[FieldName]value or RANGE[min, max] expression, which this parameter accepts; a stray bracket fails. `( )` group sub-expressions when matched; `,` acts as AND.",
+      "type": "string"
+     },
+     "includeUnknownEnrollment": {
+      "default": false,
+      "description": "Include studies whose EnrollmentCount is the upstream \"unknown\" sentinel (99999999). Excluded by default \u2014 the sentinel pollutes RANGE[N, MAX] queries. Set true for data-quality audits.",
+      "type": "boolean"
+     },
+     "interventionQuery": {
+      "description": "Intervention/treatment search. E.g., \"pembrolizumab\", \"cognitive behavioral therapy\". Matches InterventionName, InterventionType, ArmGroupType, InterventionOtherName, BriefTitle, OfficialTitle, ArmGroupLabel, InterventionMeshTerm, Keyword, InterventionAncestorTerm, InterventionDescription, and ArmGroupDescription. InterventionAncestorTerm is the MeSH umbrella above the interventions a study itself lists, so results run broader than those lists. Plain words plus AND/OR/NOT. `[ ]` are valid only inside an AREA[FieldName]value or RANGE[min, max] expression, which this parameter accepts; a stray bracket fails. `( )` group sub-expressions when matched; `,` acts as AND.",
+      "type": "string"
+     },
+     "locationQuery": {
+      "description": "Location search \u2014 city, state, country, or facility name. Matches LocationCity, LocationState, LocationCountry, LocationFacility, and LocationZip; a study matches when any of its sites does. Plain words plus AND/OR/NOT. `[ ]` are valid only inside an AREA[FieldName]value or RANGE[min, max] expression, which this parameter accepts; a stray bracket fails. `( )` group sub-expressions when matched; `,` acts as AND.",
+      "type": "string"
+     },
+     "outcomeQuery": {
+      "description": "Search within outcome measure fields. Matches PrimaryOutcomeMeasure, SecondaryOutcomeMeasure, OtherOutcomeMeasure, and OutcomeMeasureTitle, plus their description counterparts PrimaryOutcomeDescription, SecondaryOutcomeDescription, OtherOutcomeDescription, OutcomeMeasureDescription, and OutcomeMeasurePopulationDescription \u2014 so a term appearing only in outcome prose still matches. Plain words plus AND/OR/NOT. `[ ]` are valid only inside an AREA[FieldName]value or RANGE[min, max] expression, which this parameter accepts; a stray bracket fails. `( )` group sub-expressions when matched; `,` acts as AND.",
+      "type": "string"
+     },
+     "phaseFilter": {
+      "anyOf": [
+       {
+        "description": "A single phase value.",
+        "type": "string"
+       },
+       {
+        "description": "Multiple phase values (OR).",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       }
+      ],
+      "description": "Filter by trial phase. Omit to count all phases \u2014 an empty list is rejected, not treated as \"no filter\". Values: EARLY_PHASE1, PHASE1, PHASE2, PHASE3, PHASE4, NA."
+     },
+     "query": {
+      "description": "General free-text search across all fields. Runs the 57-field relevance search ClinicalTrials.gov publishes for this parameter \u2014 NCTId, NCTIdAlias, OrgStudyId, SecondaryId, Acronym, BriefTitle, OfficialTitle, Condition, InterventionName, InterventionOtherName, Phase, StdAge, StudyType, BriefSummary, outcome measures and their descriptions, LeadSponsorName, CollaboratorName, the Location* fields, the Design* fields, and the ConditionAncestorTerm/InterventionAncestorTerm MeSH umbrellas \u2014 so a hit need not carry your term in the field you had in mind. Plain words plus AND, OR, NOT. `[ ]` are valid only inside an AREA[FieldName]value or RANGE[min, max] expression \u2014 those work here as well as in advancedFilter, so AREA[Phase]PHASE2 is accepted in this parameter; a stray bracket fails. `( )` group sub-expressions and work when matched; `,` acts as AND. The dedicated *Query parameters (conditionQuery, interventionQuery, etc.) scope a search to one field.",
+      "type": "string"
+     },
+     "sponsorQuery": {
+      "description": "Sponsor/collaborator name search. Matches LeadSponsorName, CollaboratorName, and OrgFullName. Plain words plus AND/OR/NOT. `[ ]` are valid only inside an AREA[FieldName]value or RANGE[min, max] expression, which this parameter accepts; a stray bracket fails. `( )` group sub-expressions when matched; `,` acts as AND.",
+      "type": "string"
+     },
+     "statusFilter": {
+      "anyOf": [
+       {
+        "description": "A single status value.",
+        "type": "string"
+       },
+       {
+        "description": "Multiple status values (OR).",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       }
+      ],
+      "description": "Filter by study status. Omit to count all statuses \u2014 an empty list is rejected, not treated as \"no filter\". Values: RECRUITING, COMPLETED, ACTIVE_NOT_RECRUITING, NOT_YET_RECRUITING, ENROLLING_BY_INVITATION, SUSPENDED, TERMINATED, WITHDRAWN, UNKNOWN, WITHHELD, NO_LONGER_AVAILABLE, AVAILABLE, APPROVED_FOR_MARKETING, TEMPORARILY_NOT_AVAILABLE."
+     },
+     "titleQuery": {
+      "description": "Search within study titles and acronyms only. Matches Acronym, BriefTitle, and OfficialTitle. Plain words plus AND/OR/NOT. `[ ]` are valid only inside an AREA[FieldName]value or RANGE[min, max] expression, which this parameter accepts; a stray bracket fails. `( )` group sub-expressions when matched; `,` acts as AND.",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "name": "clinicaltrials_get_study_count",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "totalCount"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `blank_value`: A parameter was supplied with a blank, whitespace-only, or empty-list value. `field_invalid`: A field name in the advanced filter or AREA[] expression is invalid (often a module name instead of a piece name). `enum_invalid`: statusFilter or phaseFilter contains a value ClinicalTrials.gov does not accept. `query_parse_error`: A free-text query or advancedFilter expression uses syntax the upstream Essie parser rejects \u2014 typically a `[` or `]` outside an AREA[\u2026] / RANGE[\u2026] expression, an unmatched `(` / `)`, or an unterminated quote in a query/conditionQuery/etc. value. `rate_limited`: ClinicalTrials.gov returned 429 after retry budget exhausted. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "blank_value",
+           "field_invalid",
+           "enum_invalid",
+           "query_parse_error",
+           "rate_limited"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "notice": {
+      "description": "Recovery guidance when totalCount is 0 \u2014 suggests how to broaden the query or filters.",
+      "type": "string"
+     },
+     "searchCriteria": {
+      "additionalProperties": {},
+      "description": "Echo of active query/filter criteria applied to this count, including sentinelFilterActive when the default unknown-enrollment exclusion is in effect.",
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "totalCount": {
+      "description": "Total studies matching the query/filters.",
+      "type": "number"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "fields": {
+      "anyOf": [
+       {
+        "description": "A single PascalCase field name.",
+        "type": "string"
+       },
+       {
+        "description": "Multiple PascalCase field names (at least one required).",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       }
+      ],
+      "description": "PascalCase field name(s) to get value statistics for \u2014 an empty list is rejected, not treated as \"every field\". Examples: OverallStatus, Phase, StudyType, Sex, LeadSponsorClass. Use clinicaltrials_get_field_definitions with a query to find more field names."
+     }
+    },
+    "required": [
+     "fields"
+    ],
+    "type": "object"
+   },
+   "name": "clinicaltrials_get_field_values",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "fieldStats"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `blank_value`: A parameter was supplied with a blank, whitespace-only, or empty-list value. `field_invalid`: A requested field name is not a valid PascalCase piece name. `rate_limited`: ClinicalTrials.gov returned 429 after retry budget exhausted. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "blank_value",
+           "field_invalid",
+           "rate_limited"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "fieldStats": {
+      "description": "One entry per requested field: canonical path, PascalCase piece name, data type, and the statistics variant that type carries \u2014 top values with study counts plus unique/longest for ENUM/STRING, trueCount/falseCount for BOOLEAN, min/max/avg for INTEGER/NUMBER, min/max/formats for DATE.",
+      "items": {
+       "additionalProperties": false,
+       "description": "Statistics for a single requested field.",
+       "properties": {
+        "avg": {
+         "description": "Mean of the recorded values. Present for INTEGER/NUMBER fields.",
+         "type": "number"
+        },
+        "falseCount": {
+         "description": "Studies where field is false. Present for BOOLEAN fields.",
+         "type": "number"
+        },
+        "field": {
+         "description": "Full dot-notation field path.",
+         "type": "string"
+        },
+        "formats": {
+         "description": "Date patterns this field is recorded in. Present for DATE fields; more than one means the field mixes precisions across studies.",
+         "items": {
+          "description": "A date pattern, e.g. \"yyyy-MM-dd\".",
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "longest": {
+         "additionalProperties": false,
+         "description": "Longest recorded value with its length and a study carrying it. Present for STRING fields only.",
+         "properties": {
+          "length": {
+           "description": "Its length in characters.",
+           "type": "number"
+          },
+          "nctId": {
+           "description": "NCT ID of a study carrying it.",
+           "type": "string"
+          },
+          "value": {
+           "description": "The longest recorded value.",
+           "type": "string"
+          }
+         },
+         "required": [
+          "value",
+          "length",
+          "nctId"
+         ],
+         "type": "object"
+        },
+        "max": {
+         "anyOf": [
+          {
+           "description": "Largest value of an INTEGER/NUMBER field.",
+           "type": "number"
+          },
+          {
+           "description": "Latest value of a DATE field, at the precision recorded.",
+           "type": "string"
+          }
+         ],
+         "description": "Largest recorded value \u2014 a number for INTEGER/NUMBER, a date string for DATE."
+        },
+        "min": {
+         "anyOf": [
+          {
+           "description": "Smallest value of an INTEGER/NUMBER field.",
+           "type": "number"
+          },
+          {
+           "description": "Earliest value of a DATE field, at the precision recorded \u2014 a partial date such as \"1900-01\" stays partial.",
+           "type": "string"
+          }
+         ],
+         "description": "Smallest recorded value \u2014 a number for INTEGER/NUMBER, a date string for DATE."
+        },
+        "missingStudiesCount": {
+         "description": "Number of studies where this field is absent.",
+         "type": "number"
+        },
+        "multiValued": {
+         "description": "True when the field is repeated \u2014 array-typed itself (Phase, Condition) or nested under a repeated object (LocationCountry, one per site) \u2014 so a study can carry several values and the per-value studiesCount buckets sum above the study total. Use to avoid computing a percentage against the corpus.",
+         "type": "boolean"
+        },
+        "piece": {
+         "description": "PascalCase piece name.",
+         "type": "string"
+        },
+        "topValues": {
+         "description": "Values ranked by frequency (capped at 250 by the API). Present for ENUM/STRING fields. When multiValued is true, studiesCount sums can exceed the study total.",
+         "items": {
+          "additionalProperties": false,
+          "description": "A value and its study count.",
+          "properties": {
+           "studiesCount": {
+            "description": "Number of studies with this value.",
+            "type": "number"
+           },
+           "value": {
+            "description": "Field value.",
+            "type": "string"
+           }
+          },
+          "required": [
+           "value",
+           "studiesCount"
+          ],
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "trueCount": {
+         "description": "Studies where field is true. Present for BOOLEAN fields.",
+         "type": "number"
+        },
+        "type": {
+         "description": "Field data type (ENUM, BOOLEAN, STRING, DATE, etc.).",
+         "type": "string"
+        },
+        "uniqueValuesCount": {
+         "description": "Number of distinct values.",
+         "type": "number"
+        }
+       },
+       "required": [
+        "field",
+        "piece",
+        "type"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "includeIndexedOnly": {
+      "description": "drill mode only. Only return indexed (searchable) fields. Default: false.",
+      "type": "boolean"
+     },
+     "limit": {
+      "default": 20,
+      "description": "search mode only. Maximum results to return. Default: 20.",
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "mode": {
+      "description": "Operation mode. \"search\" \u2014 keyword search (requires `query`); \"drill\" \u2014 drill into a section by path (requires `path`); \"overview\" \u2014 list all top-level sections (no other args needed).",
+      "enum": [
+       "search",
+       "drill",
+       "overview"
+      ],
+      "type": "string"
+     },
+     "path": {
+      "description": "drill mode only. Dot-notation path to drill into \u2014 e.g., \"protocolSection.designModule\", \"protocolSection.eligibilityModule\", \"resultsSection\". Returns the section's individual fields.",
+      "type": "string"
+     },
+     "query": {
+      "description": "search mode only. Keyword to search field names by \u2014 e.g., \"enrollment\", \"sponsor\", \"adverse events\". Returns matching field names ranked by relevance with their full paths and data types.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "mode"
+    ],
+    "type": "object"
+   },
+   "name": "clinicaltrials_get_field_definitions",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "fields",
+       "totalFields"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "cap": {
+      "description": "The limit cap applied to this search (search mode only).",
+      "type": "number"
+     },
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `blank_value`: The selected mode's required argument was supplied with a whitespace-only value. `mode_mismatch`: An argument belonging to a different mode was supplied alongside the selected mode. `mode_requires`: The selected mode's required argument was omitted. `path_not_found`: The dot-notation path does not match any node in the field tree. `rate_limited`: ClinicalTrials.gov returned 429 after retry budget exhausted. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "blank_value",
+           "mode_mismatch",
+           "mode_requires",
+           "path_not_found",
+           "rate_limited"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "fields": {
+      "description": "Field definitions, ordered by relevance when mode is \"search\".",
+      "items": {
+       "additionalProperties": false,
+       "description": "A single field definition node.",
+       "properties": {
+        "children": {
+         "description": "Child fields (overview mode only).",
+         "items": {
+          "additionalProperties": {},
+          "propertyNames": {
+           "type": "string"
+          },
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "description": {
+         "description": "Human-readable description from the upstream data model. Often absent.",
+         "type": "string"
+        },
+        "isEnum": {
+         "description": "Whether the field is an enum type.",
+         "type": "boolean"
+        },
+        "name": {
+         "description": "Field name (camelCase).",
+         "type": "string"
+        },
+        "path": {
+         "description": "Full dot-notation path.",
+         "type": "string"
+        },
+        "piece": {
+         "description": "PascalCase identifier for use in `fields`/`AREA[]`/`sort` params.",
+         "type": "string"
+        },
+        "sourceType": {
+         "description": "Data type in the model.",
+         "type": "string"
+        },
+        "type": {
+         "description": "Semantic type.",
+         "type": "string"
+        }
+       },
+       "required": [
+        "name"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "notice": {
+      "description": "Recovery guidance when search mode returns no matches, or a truncation note when results are capped.",
+      "type": "string"
+     },
+     "resolvedPath": {
+      "description": "Resolved path when mode is \"drill\".",
+      "type": "string"
+     },
+     "searchQuery": {
+      "description": "Echo of the keyword used in search mode. Absent for drill and overview.",
+      "type": "string"
+     },
+     "shown": {
+      "description": "Number of fields returned (search mode only).",
+      "type": "number"
+     },
+     "totalFields": {
+      "description": "Total fields returned.",
+      "type": "number"
+     },
+     "totalMatches": {
+      "description": "Total fields matching the query before the limit cap was applied (search mode only). Compare against `shown` to size a follow-up limit, or to see that a capped result set is barely over the cap rather than hundreds deep.",
+      "type": "number"
+     },
+     "truncated": {
+      "description": "True when the field list was capped by the limit parameter (search mode only).",
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "adverseEventLimit": {
+      "description": "Optional cap on the number of serious and other adverse events returned per study, applied to each list separately in upstream order. Omit for no cap (every event). Applies to full mode only \u2014 summary mode already ranks the top 20 by the most participants affected in any one event group. Event groups are never capped. Upstream totals preserved in filtersApplied.totalSeriousEvents / totalOtherEvents only when the cap trims a list.",
+      "maximum": 500,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "nctIds": {
+      "anyOf": [
+       {
+        "description": "A single NCT ID.",
+        "pattern": "^NCT\\d{8}$",
+        "type": "string"
+       },
+       {
+        "description": "Multiple NCT IDs (max 20).",
+        "items": {
+         "pattern": "^NCT\\d{8}$",
+         "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array"
+       }
+      ],
+      "description": "One or more NCT IDs (max 20) \u2014 an empty list is rejected, and a repeated ID collapses to one results entry in first-occurrence order. E.g., \"NCT12345678\" or [\"NCT12345678\", \"NCT87654321\"]. Use summary=true for large batches to avoid large payloads."
+     },
+     "otherEventOffset": {
+      "description": "Optional index of the first other (non-serious) adverse event to return, in upstream order. Omit or 0 to start at the first. Pages independently of seriousEventOffset and pairs with adverseEventLimit. Continue from filtersApplied.nextOtherEventOffset until that field is absent. Applied to every study in the call. Rejected with summary: true or when sections excludes adverseEvents.",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "outcomeLimit": {
+      "description": "Optional cap on the number of outcome measures returned per study, taken in the order ClinicalTrials.gov publishes them. Omit for no cap (every measure). Applies to full mode only \u2014 summary mode is already condensed. Each surviving measure keeps its complete groups/classes/measurements/analyses tree. Upstream total preserved in filtersApplied.totalOutcomes only when the cap trims the list.",
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "outcomeOffset": {
+      "description": "Optional index of the first outcome measure to return, in the order ClinicalTrials.gov publishes them. Omit or 0 to start at the first. Pair with outcomeLimit to page a long list: each response reports filtersApplied.nextOutcomeOffset for the study, and the list is exhausted when that field is absent. Applied to every study in the call. An offset at or past the end returns an empty list with filtersApplied.totalOutcomes stating the upstream length, not an error. Rejected with summary: true or when sections excludes outcomes.",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "sections": {
+      "anyOf": [
+       {
+        "description": "A single section name.",
+        "enum": [
+         "outcomes",
+         "adverseEvents",
+         "participantFlow",
+         "baseline",
+         "moreInfo"
+        ],
+        "type": "string"
+       },
+       {
+        "description": "Multiple section names.",
+        "items": {
+         "enum": [
+          "outcomes",
+          "adverseEvents",
+          "participantFlow",
+          "baseline",
+          "moreInfo"
+         ],
+         "type": "string"
+        },
+        "type": "array"
+       }
+      ],
+      "description": "Filter which sections to return. Values: outcomes, adverseEvents, participantFlow, baseline, moreInfo. Omit for all sections \u2014 an empty list is rejected, not treated as omission."
+     },
+     "seriousEventOffset": {
+      "description": "Optional index of the first serious adverse event to return, in upstream order. Omit or 0 to start at the first. Pages independently of otherEventOffset \u2014 the two lists have uncorrelated lengths \u2014 and pairs with adverseEventLimit, which bounds each list separately. Continue from filtersApplied.nextSeriousEventOffset until that field is absent. Applied to every study in the call. Rejected with summary: true or when sections excludes adverseEvents.",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "summary": {
+      "default": false,
+      "description": "Return condensed summaries instead of full data. Full mode renders every row and field on both output channels, so a large results set can exceed 500KB per study; summary mode typically cuts that to a few KB, scaling with the measure count rather than to a fixed ceiling. An outcome summary keeps the title, type, timeframe, paramType, dispersionType, unit, group/class counts, per-group denominators, one statistical analysis, and a top-line projection of a single class/category cell \u2014 labelled with the class and category titles it came from and a count of the siblings it omits. The measurements outside that cell and the remaining analyses are dropped; re-run with summary=false to reach them. For a middle ground, keep full mode and cap the two lists that carry the bulk with outcomeLimit / adverseEventLimit.",
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "name": "clinicaltrials_get_study_results",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "results"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `blank_value`: A parameter was supplied with a blank, whitespace-only, or empty-list value. `offset_not_applicable`: An offset was supplied for a list this call does not return \u2014 summary mode returns a condensed projection rather than a bounded window, or the sections filter excludes the offset\u2019s own section. `rate_limited`: ClinicalTrials.gov returned 429 after retry budget exhausted. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "blank_value",
+           "offset_not_applicable",
+           "rate_limited"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "fetchErrors": {
+      "description": "Studies that could not be fetched.",
+      "items": {
+       "additionalProperties": false,
+       "description": "A single fetch error.",
+       "properties": {
+        "error": {
+         "description": "Error message.",
+         "type": "string"
+        },
+        "nctId": {
+         "description": "NCT ID.",
+         "type": "string"
+        }
+       },
+       "required": [
+        "nctId",
+        "error"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "results": {
+      "description": "Results per study.",
+      "items": {
+       "additionalProperties": false,
+       "description": "Extracted results for one study.",
+       "properties": {
+        "adverseEvents": {
+         "additionalProperties": {},
+         "description": "Adverse events. Summary mode: timeFrame, groupCount, seriousEventCount, otherEventCount, eventGroups (id and title of each event group), plus topEvents \u2014 up to 20 events ranked by the most participants affected in any one event group, each with term, organSystem, kind, and byGroup (one { groupId, numAffected, numAtRisk } row per event group; resolve groupId against eventGroups). Counts are never pooled across groups: groups can overlap (a crossover or second-course group re-counts participants of its parent arm), so compare arms row by row. Full mode: eventGroups with descriptions and per-group totals, plus seriousEvents and otherEvents with per-event term and per-group affected/at-risk stats.",
+         "propertyNames": {
+          "type": "string"
+         },
+         "type": "object"
+        },
+        "baseline": {
+         "additionalProperties": {},
+         "description": "Baseline characteristics. Summary mode: groupCount, measureCount, and measures (title, paramType, unitOfMeasure). Full mode: adds groups and measures with per-group classes/categories/measurements.",
+         "propertyNames": {
+          "type": "string"
+         },
+         "type": "object"
+        },
+        "canonicalNctId": {
+         "description": "The canonical NCT identifier of the study that answered \u2014 present only when the requested nctId is a previous (alias) ID pointing at a different record. Absent means nctId is already canonical. Requesting an alias and its own canonical ID together returns one entry per requested ID, both carrying the same study.",
+         "type": "string"
+        },
+        "filtersApplied": {
+         "additionalProperties": false,
+         "description": "What the outcomeLimit / adverseEventLimit caps and the outcomeOffset / seriousEventOffset / otherEventOffset offsets trimmed on this study, plus the next offset for each list left short. Present only when a bound actually reduced a list \u2014 a window that started at zero and reached the end trimmed nothing. Absent means the payload is the complete upstream set for the requested sections. Offsets apply uniformly to every study in the call, so continuation is reported per study: each exhausts its lists at a different index.",
+         "properties": {
+          "adverseEventLimit": {
+           "description": "Echo of the adverseEventLimit input \u2014 present only when the cap cut events off the end of a window. Which list it cut is named by that list\u2019s own next offset.",
+           "maximum": 9007199254740991,
+           "minimum": -9007199254740991,
+           "type": "integer"
+          },
+          "nextOtherEventOffset": {
+           "description": "The otherEventOffset to request next for this study \u2014 present only when other events remain past the window. Absent means this study\u2019s other event list is exhausted.",
+           "maximum": 9007199254740991,
+           "minimum": -9007199254740991,
+           "type": "integer"
+          },
+          "nextOutcomeOffset": {
+           "description": "The outcomeOffset to request next for this study \u2014 present only when measures remain past the window. Absent means this study\u2019s outcome list is exhausted.",
+           "maximum": 9007199254740991,
+           "minimum": -9007199254740991,
+           "type": "integer"
+          },
+          "nextSeriousEventOffset": {
+           "description": "The seriousEventOffset to request next for this study \u2014 present only when serious events remain past the window. Absent means this study\u2019s serious event list is exhausted.",
+           "maximum": 9007199254740991,
+           "minimum": -9007199254740991,
+           "type": "integer"
+          },
+          "otherEventOffset": {
+           "description": "Echo of the otherEventOffset input \u2014 present only when it skipped events before the window.",
+           "maximum": 9007199254740991,
+           "minimum": -9007199254740991,
+           "type": "integer"
+          },
+          "outcomeLimit": {
+           "description": "Echo of the outcomeLimit input \u2014 present only when the cap cut measures off the end of the window.",
+           "maximum": 9007199254740991,
+           "minimum": -9007199254740991,
+           "type": "integer"
+          },
+          "outcomeOffset": {
+           "description": "Echo of the outcomeOffset input \u2014 present only when it skipped measures before the window.",
+           "maximum": 9007199254740991,
+           "minimum": -9007199254740991,
+           "type": "integer"
+          },
+          "seriousEventOffset": {
+           "description": "Echo of the seriousEventOffset input \u2014 present only when it skipped events before the window.",
+           "maximum": 9007199254740991,
+           "minimum": -9007199254740991,
+           "type": "integer"
+          },
+          "totalOtherEvents": {
+           "description": "Upstream other adverse event count, before the bounds trimmed the list.",
+           "maximum": 9007199254740991,
+           "minimum": -9007199254740991,
+           "type": "integer"
+          },
+          "totalOutcomes": {
+           "description": "Upstream outcome measure count, before the bounds trimmed the list.",
+           "maximum": 9007199254740991,
+           "minimum": -9007199254740991,
+           "type": "integer"
+          },
+          "totalSeriousEvents": {
+           "description": "Upstream serious adverse event count, before the bounds trimmed the list.",
+           "maximum": 9007199254740991,
+           "minimum": -9007199254740991,
+           "type": "integer"
+          }
+         },
+         "type": "object"
+        },
+        "hasResults": {
+         "description": "Whether study has posted results.",
+         "type": "boolean"
+        },
+        "moreInfo": {
+         "additionalProperties": {},
+         "description": "Results metadata from moreInfoModule. Summary mode: limitationsAndCaveats, certainAgreement flags (piSponsorEmployee, restrictiveAgreement, restrictionType), and pointOfContact. Full mode: adds certainAgreement.otherDetails.",
+         "propertyNames": {
+          "type": "string"
+         },
+         "type": "object"
+        },
+        "nctId": {
+         "description": "The NCT identifier as requested, trimmed and uppercased. When it is a previous (alias) ID, ClinicalTrials.gov answers with the canonical record and canonicalNctId names it.",
+         "type": "string"
+        },
+        "outcomes": {
+         "description": "Outcome measures with per-group statistics. Summary mode (compact): type, title, timeFrame, paramType, dispersionType, unitOfMeasure, group/class counts, denoms (per-group denominators keyed by group title), topStats (the per-group cells of one class/category \u2014 each carrying the upstream value verbatim, including an NA/NR sentinel, plus spread, lowerLimit/upperLimit, and the record\u2019s own comment when present), topStatsFrom (classTitle / categoryTitle naming where that cell came from, with omittedClasses / omittedCategories counts and a note pointing at summary=false when siblings were dropped), and topAnalysis (statisticalMethod, pValue, paramType/Value, ciPctValue/Lower/Upper, nonInferiorityType, groupIds \u2014 lifted from analyses[0]) when present. Full mode (default): adds raw groups, classes, categories, measurements, and analyses arrays.",
+         "items": {
+          "additionalProperties": {},
+          "propertyNames": {
+           "type": "string"
+          },
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "participantFlow": {
+         "additionalProperties": {},
+         "description": "Participant flow milestones and drop-outs. Summary mode: groupCount, periodCount. Full mode: adds groups and periods with per-period milestones, achievements, and dropWithdraws.",
+         "propertyNames": {
+          "type": "string"
+         },
+         "type": "object"
+        },
+        "title": {
+         "description": "Study title.",
+         "type": "string"
+        }
+       },
+       "required": [
+        "nctId",
+        "title",
+        "hasResults"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "studiesWithoutResults": {
+      "description": "NCT IDs that do not have results data.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "truncated": {
+      "description": "True when a bound \u2014 a cap or an offset \u2014 trimmed a list on at least one study; absent when nothing was trimmed, matching filtersApplied one level down. Which study, which list, and where to resume is named in that study\u2019s filtersApplied.",
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "age": {
+      "description": "Patient age in years.",
+      "maximum": 120,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "conditions": {
+      "description": "Medical conditions or diagnoses, e.g. [\"Type 2 Diabetes\", \"Hypertension\"]. Each entry is matched as a condition (multi-word entries match as a phrase); multiple entries are combined with OR, so studies for any listed condition qualify. Returned studies are re-ranked so those whose own condition list names a requested condition rank above tangential matches the upstream fuzzy search pulls in via the MeSH umbrella.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "healthyVolunteer": {
+      "default": false,
+      "description": "Whether the patient is a healthy volunteer. When true, only studies accepting healthy volunteers are queried.",
+      "type": "boolean"
+     },
+     "location": {
+      "additionalProperties": false,
+      "description": "Patient location as `{ country (required), state?, city? }`. Country is required; state/city narrow the match. For radius-based geographic search, use clinicaltrials_search_studies with geoFilter.",
+      "properties": {
+       "city": {
+        "description": "City name.",
+        "type": "string"
+       },
+       "country": {
+        "description": "Country name. E.g., \"United States\".",
+        "type": "string"
+       },
+       "state": {
+        "description": "State or province.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "country"
+      ],
+      "type": "object"
+     },
+     "locationLimit": {
+      "default": 10,
+      "description": "Cap on the sites returned per candidate. Each candidate keeps only the sites matching the requested location at the narrowest level that matched (city, else state, else country), capped at this many; the rest of the study's registered sites are omitted. The cap governs those matched sites \u2014 when none of them is recruiting, one recruiting site is added on top of it (the nearest to any matched site, measured before this cap, when coordinates allow \u2014 in the requested country whenever a site there recruits), so a candidate can carry one site more than this. Raise it to see more nearby sites, or fetch the complete site list with clinicaltrials_get_study_record. Each candidate reports totalLocations / matchedLocations / locationsTruncated / nearestRecruitingSiteAdded in locationSummary only when the bound actually dropped sites.",
+      "maximum": 500,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "maxResults": {
+      "default": 10,
+      "description": "Maximum results to return.",
+      "maximum": 50,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "recruitingOnly": {
+      "default": true,
+      "description": "Only include actively recruiting studies.",
+      "type": "boolean"
+     },
+     "sex": {
+      "description": "Patient's biological sex. Use 'ALL' to include studies regardless of sex restrictions.",
+      "enum": [
+       "FEMALE",
+       "MALE",
+       "ALL"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "age",
+     "sex",
+     "conditions",
+     "location"
+    ],
+    "type": "object"
+   },
+   "name": "clinicaltrials_find_eligible",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "studies",
+       "searchCriteria",
+       "funnel"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `blank_value`: A parameter was supplied with a blank, whitespace-only, or empty-list value. `rate_limited`: ClinicalTrials.gov returned 429 after retry budget exhausted. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "blank_value",
+           "rate_limited"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "funnel": {
+      "additionalProperties": false,
+      "description": "Match counts at each filter stage. Shows where the funnel collapsed \u2014 e.g., conditionMatched=298 but demographicsMatched=2 means age/sex/status are the constraint.",
+      "properties": {
+       "conditionMatched": {
+        "description": "Studies matching the condition query alone (broadest stage).",
+        "type": "number"
+       },
+       "demographicsMatched": {
+        "description": "Studies matching the full filter set (condition + location + age/sex + status). Equal to totalCount.",
+        "type": "number"
+       },
+       "locationMatched": {
+        "description": "Studies matching condition + location \u2014 diagnoses geographic narrowing.",
+        "type": "number"
+       }
+      },
+      "required": [
+       "conditionMatched",
+       "locationMatched",
+       "demographicsMatched"
+      ],
+      "type": "object"
+     },
+     "notice": {
+      "description": "Recovery guidance when no studies matched \u2014 identifies which filter stage collapsed and suggests how to broaden. Absent when results are returned.",
+      "type": "string"
+     },
+     "searchCriteria": {
+      "additionalProperties": false,
+      "description": "Normalized search criteria applied to this eligibility query, including the exact upstream query strings needed to reproduce the full match set via clinicaltrials_search_studies (replay with includeUnknownEnrollment=true, which find_eligible always sets).",
+      "properties": {
+       "advancedFilter": {
+        "description": "The exact AREA[] advancedFilter (age range, plus sex/healthy-volunteer when constrained) sent upstream. Pass as advancedFilter to clinicaltrials_search_studies to reproduce the demographic constraints.",
+        "type": "string"
+       },
+       "age": {
+        "description": "Patient age.",
+        "type": "number"
+       },
+       "conditionQuery": {
+        "description": "The exact queryCond string sent upstream (multi-word terms quoted, OR-joined). Pass as conditionQuery to clinicaltrials_search_studies to reproduce the full match set beyond the maxResults cap.",
+        "type": "string"
+       },
+       "conditions": {
+        "description": "Conditions searched.",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "location": {
+        "description": "The exact queryLocn string sent upstream (city/state/country, multi-word components quoted, AND-joined). Pass as locationQuery to clinicaltrials_search_studies to reproduce the location filter beyond the maxResults cap.",
+        "type": "string"
+       },
+       "sex": {
+        "description": "Patient sex.",
+        "type": "string"
+       },
+       "statusFilter": {
+        "description": "The status filter applied ([\"RECRUITING\"] when recruitingOnly). Pass as statusFilter to clinicaltrials_search_studies. Absent when recruitingOnly is false.",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       }
+      },
+      "required": [
+       "conditions",
+       "location",
+       "age",
+       "sex"
+      ],
+      "type": "object"
+     },
+     "studies": {
+      "description": "Matching studies with eligibility and location fields. Each candidate's protocolSection.contactsLocationsModule.locations is BOUNDED to the sites matching the requested location (capped at locationLimit) plus, when none of those is recruiting, one added recruiting site \u2014 not the study's full registered site list. The added site is the one nearest any matched site by published coordinates, taken from the requested country whenever a site there recruits, and carries distanceMi (miles to that nearest matched site); when the matched or recruiting sites publish no coordinates it is the first in match order and carries no distanceMi. A candidate whose sites were bounded also carries a top-level locationSummary object \u2014 { totalLocations, matchedLocations, locationsTruncated, nearestRecruitingSiteAdded?, retrieveFullStudyWith } \u2014 absent when nothing was dropped; nearestRecruitingSiteAdded is present only when that extra site was added (the key keeps its name in the match-order fallback). Fetch a study's complete record and site list with clinicaltrials_get_study_record.",
+      "items": {
+       "additionalProperties": {},
+       "propertyNames": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "totalCount": {
+      "description": "Total matching studies from the API.",
+      "type": "number"
+     }
+    },
+    "type": "object"
+   }
+  }
+ ]
+}

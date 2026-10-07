@@ -1,0 +1,45 @@
+{
+  "_note": "Synthetic records for the planted-fault server and its replay cassettes. None of these trials or articles exist.",
+  "release": {"ctgov": "2026-10-06T09:00:00", "pubmed": "2026/10/07 04:00"},
+  "trials": [
+    {
+      "nct_id": "NCT90000001",
+      "title": "Synthetic Trial of Compound A in Early Parkinson Disease",
+      "overall_status": "RECRUITING",
+      "last_update_post_date": "2026-09-15"
+    },
+    {
+      "nct_id": "NCT90000002",
+      "title": "Synthetic Trial of Aerobic Exercise in LRRK2 Carriers",
+      "overall_status": "COMPLETED",
+      "last_update_post_date": "2026-08-02"
+    }
+  ],
+  "literature": [
+    {
+      "query": "synthetic lrrk2 autophagy",
+      "since": "2026-01-01",
+      "until": "2026-06-30",
+      "records": [
+        {"pmid": "99000012", "title": "Synthetic record 12", "pub_date": "2026-06-24"},
+        {"pmid": "99000011", "title": "Synthetic record 11", "pub_date": "2026-06-10"},
+        {"pmid": "99000010", "title": "Synthetic record 10", "pub_date": "2026-05-28"},
+        {"pmid": "99000009", "title": "Synthetic record 9", "pub_date": "2026-05-15"},
+        {"pmid": "99000008", "title": "Synthetic record 8", "pub_date": "2026-04-30"},
+        {"pmid": "99000007", "title": "Synthetic record 7", "pub_date": "2026-04-11"},
+        {"pmid": "99000006", "title": "Synthetic record 6", "pub_date": "2026-03-27"},
+        {"pmid": "99000005", "title": "Synthetic record 5", "pub_date": "2026-03-05"},
+        {"pmid": "99000004", "title": "Synthetic record 4", "pub_date": "2026-02-19"},
+        {"pmid": "99000003", "title": "Synthetic record 3", "pub_date": "2026-02-02"},
+        {"pmid": "99000002", "title": "Synthetic record 2", "pub_date": "2026-01-20"},
+        {"pmid": "99000001", "title": "Synthetic record 1", "pub_date": "2026-01-08"}
+      ]
+    },
+    {
+      "query": "qzxvbnmlkj wpqrtzz",
+      "since": "2026-01-01",
+      "until": "2026-06-30",
+      "records": []
+    }
+  ]
+}

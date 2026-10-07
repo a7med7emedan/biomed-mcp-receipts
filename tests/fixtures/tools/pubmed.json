@@ -1,0 +1,3649 @@
+{
+ "captured": "2026-10-07",
+ "protocol": "2026-07-28",
+ "server_info": {
+  "description": null,
+  "icons": null,
+  "name": "pubmed-mcp-server",
+  "title": "pubmed-mcp-server",
+  "version": "2.10.20",
+  "website_url": null
+ },
+ "tools": [
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "author": {
+      "description": "Filter by author name (e.g. \"Smith J\"). An empty string applies no filter; a value of only whitespace, invisible characters, markup, parentheses, brackets, or double quotes is rejected.",
+      "type": "string"
+     },
+     "dateRange": {
+      "description": "Filter by date range. The filter is applied only when both `minDate` and `maxDate` are non-empty; either one empty disables the entire date range. A partial date covers its whole year or month, and a range whose `minDate` falls after its `maxDate` is rejected: `2024/06` to `2024` is valid, `2024/07` to `2024/06/30` is not.",
+      "properties": {
+       "dateType": {
+        "default": "pdat",
+        "description": "Date type: pdat (publication), mdat (modification), edat (entrez)",
+        "enum": [
+         "pdat",
+         "mdat",
+         "edat"
+        ],
+        "type": "string"
+       },
+       "maxDate": {
+        "description": "End date (YYYY/MM/DD, YYYY/MM, or YYYY). Must be a real calendar date \u2014 `2023/02/29` is rejected. Leaving it empty drops the whole date range, not just this bound; for no upper bound pass a wide sentinel such as `3000`.",
+        "pattern": "^$|^\\d{4}([/\\-.]\\d{1,2}([/\\-.]\\d{1,2})?)?$",
+        "type": "string"
+       },
+       "minDate": {
+        "description": "Start date (YYYY/MM/DD, YYYY/MM, or YYYY). Must be a real calendar date \u2014 `2023/02/29` is rejected. Leaving it empty drops the whole date range, not just this bound; for no lower bound pass a wide sentinel such as `1000`.",
+        "pattern": "^$|^\\d{4}([/\\-.]\\d{1,2}([/\\-.]\\d{1,2})?)?$",
+        "type": "string"
+       }
+      },
+      "required": [
+       "minDate",
+       "maxDate"
+      ],
+      "type": "object"
+     },
+     "freeFullText": {
+      "description": "Only include free full text articles",
+      "type": "boolean"
+     },
+     "hasAbstract": {
+      "description": "Only include articles with abstracts",
+      "type": "boolean"
+     },
+     "journal": {
+      "description": "Filter by journal name. An empty string applies no filter; a value of only whitespace, invisible characters, markup, parentheses, brackets, or double quotes is rejected.",
+      "type": "string"
+     },
+     "language": {
+      "description": "Filter by language (e.g. \"english\"). An empty string applies no filter; a value of only whitespace, invisible characters, markup, parentheses, brackets, or double quotes is rejected.",
+      "type": "string"
+     },
+     "maxResults": {
+      "default": 20,
+      "description": "Maximum results to return. 0 returns only `totalCount`.",
+      "maximum": 1000,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "meshTerms": {
+      "description": "Filter by MeSH terms. Multiple terms are AND'd \u2014 all must match. Empty strings are skipped; an element of only whitespace, invisible characters, markup, parentheses, brackets, or double quotes is rejected.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "offset": {
+      "default": 0,
+      "description": "Result offset for pagination (0-based). PubMed serves at most the first 9999 records of a result set, so this caps at 9998; narrow the query or add filters to reach anything beyond it.",
+      "maximum": 9998,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "publicationTypes": {
+      "description": "Filter by publication type (e.g. \"Review\", \"Clinical Trial\", \"Meta-Analysis\"). Multiple values are OR'd \u2014 any match qualifies. Empty strings are skipped; an element of only whitespace, invisible characters, markup, parentheses, brackets, or double quotes is rejected.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "query": {
+      "description": "PubMed search query (supports full NCBI syntax). Must carry a search term: a value that is blank once markup, bracketed field tags (`[pdat]`), parentheses, and invisible characters such as a zero-width space are disregarded is rejected rather than sent to PubMed.",
+      "minLength": 1,
+      "type": "string"
+     },
+     "sort": {
+      "default": "relevance",
+      "description": "Sort order: relevance (default), pub_date (newest first), author, or journal",
+      "enum": [
+       "relevance",
+       "pub_date",
+       "author",
+       "journal"
+      ],
+      "type": "string"
+     },
+     "species": {
+      "description": "Filter by species",
+      "enum": [
+       "humans",
+       "animals"
+      ],
+      "type": "string"
+     },
+     "summaryCount": {
+      "default": 0,
+      "description": "Fetch brief summaries for top N results (0 = PMIDs only). Above the 50 cap, pass the remaining PMIDs to pubmed_fetch_articles.",
+      "maximum": 50,
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object"
+   },
+   "name": "pubmed_search_articles",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "query",
+       "offset",
+       "pmids",
+       "summaries",
+       "searchUrl",
+       "totalCount",
+       "effectiveQuery",
+       "appliedFilters"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "appliedFilters": {
+      "additionalProperties": false,
+      "description": "Normalized filter values that were applied to the PubMed query",
+      "properties": {
+       "author": {
+        "description": "Author filter applied to the search",
+        "type": "string"
+       },
+       "dateRange": {
+        "additionalProperties": false,
+        "description": "Date range filter applied to the search",
+        "properties": {
+         "dateType": {
+          "description": "Applied date field used for the range filter",
+          "enum": [
+           "pdat",
+           "mdat",
+           "edat"
+          ],
+          "type": "string"
+         },
+         "maxDate": {
+          "description": "Applied maximum date",
+          "type": "string"
+         },
+         "minDate": {
+          "description": "Applied minimum date",
+          "type": "string"
+         }
+        },
+        "required": [
+         "minDate",
+         "maxDate",
+         "dateType"
+        ],
+        "type": "object"
+       },
+       "freeFullText": {
+        "description": "Whether results were restricted to free full-text articles",
+        "type": "boolean"
+       },
+       "hasAbstract": {
+        "description": "Whether results were restricted to articles with abstracts",
+        "type": "boolean"
+       },
+       "journal": {
+        "description": "Journal filter applied to the search",
+        "type": "string"
+       },
+       "language": {
+        "description": "Language filter applied to the search",
+        "type": "string"
+       },
+       "meshTerms": {
+        "description": "MeSH term filters applied to the search",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "publicationTypes": {
+        "description": "Publication type filters applied to the search",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "species": {
+        "description": "Species filter applied to the search",
+        "enum": [
+         "humans",
+         "animals"
+        ],
+        "type": "string"
+       }
+      },
+      "type": "object"
+     },
+     "effectiveQuery": {
+      "description": "Sanitized query sent to PubMed after applying all active filters",
+      "type": "string"
+     },
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `queue_full`: The local NCBI request queue shed the call \u2014 the queue is full, or the call cannot start before its total deadline (for example behind the cooldown that follows an NCBI 429). `ncbi_unreachable`: NCBI E-utilities failed on every attempt the retry budget allowed \u2014 retries ran out, or the next backoff would overrun the total deadline. `ncbi_rate_limited`: NCBI answered HTTP 429 (too many requests) and the call stopped on it \u2014 retries ran out, the next backoff would overrun the total deadline, or the Retry-After NCBI named outlasts the time left or the 30-second backoff cap. `ncbi_deadline_exceeded`: The total NCBI request deadline expired before NCBI answered successfully \u2014 mid-request, while queued, or during a retry backoff. `ncbi_invalid_response`: NCBI returned a body that could not be parsed (invalid XML/JSON). `ncbi_resource_not_found`: NCBI returned a structured \"not found\" error for the requested ID(s). `blank_query`: The query contains no search term: nothing is left once whitespace and invisible characters such as a zero-width space are disregarded. pubmed_search_articles and pubmed_europepmc_search first decode HTML entities and also disregard markup and parentheses, so `()`, `<b></b>`, and `&nbsp;` hold no term there; pubmed_search_articles also disregards bracketed field tags such as `[pdat]`. `invalid_date_range`: A `dateRange` bound is not a real calendar date \u2014 a month outside 01\u201312, day 00, or a day past the end of its month such as `2023/02/29` \u2014 or `minDate` falls after `maxDate` once PubMed expands each partial date: `minDate` from the start of its year or month, `maxDate` to the end. `blank_filter`: An `author`, `journal`, or `language` value, or a `publicationTypes` or `meshTerms` element, holds no term once markup is removed and HTML entities are decoded \u2014 only whitespace, invisible characters such as a zero-width space, parentheses, brackets, or double quotes are left, as in `()` or `\"\"` \u2014 so its field clause would carry no term. An exactly-empty string is not blank here; it sets no filter. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "queue_full",
+           "ncbi_unreachable",
+           "ncbi_rate_limited",
+           "ncbi_deadline_exceeded",
+           "ncbi_invalid_response",
+           "ncbi_resource_not_found",
+           "blank_query",
+           "invalid_date_range",
+           "blank_filter"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "notice": {
+      "description": "Optional guidance when the result set does not reflect what was asked for \u2014 a field tag PubMed ignored, a phrase it matched nothing for, a dateRange dropped for having one bound, no matches at all, or paging past the end. Absent when nothing applies.",
+      "type": "string"
+     },
+     "offset": {
+      "description": "Result offset used",
+      "type": "number"
+     },
+     "pmids": {
+      "description": "PubMed IDs",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "query": {
+      "description": "Original query",
+      "type": "string"
+     },
+     "searchUrl": {
+      "description": "PubMed search URL",
+      "type": "string"
+     },
+     "summaries": {
+      "description": "Brief summaries (empty array when summaryCount is 0)",
+      "items": {
+       "additionalProperties": false,
+       "description": "Brief article summary",
+       "properties": {
+        "authors": {
+         "description": "Formatted author string \u2014 the first three of the record's own authors, then \"et al.\". On an NCBI Bookshelf chapter these are the chapter's authors; the book's editors are reported separately in `editors`.",
+         "type": "string"
+        },
+        "bookTitle": {
+         "description": "Title of the book an NCBI Bookshelf record belongs to, e.g. \"GeneReviews(\u00ae)\". Present instead of `source` on a book record; absent on a journal article.",
+         "type": "string"
+        },
+        "docType": {
+         "description": "What PubMed classifies this record as: \"chapter\" or \"book\" for an NCBI Bookshelf record, \"citation\" for an ordinary journal article. Absent when PubMed supplies none.",
+         "type": "string"
+        },
+        "doi": {
+         "description": "DOI, cased as NCBI reports it. DOIs are case-insensitive by spec and no case normalization is applied here, so casing can differ from a Europe PMC-sourced `doi` \u2014 compare the two case-insensitively.",
+         "type": "string"
+        },
+        "editors": {
+         "description": "Editors of the containing book, kept out of `authors` so they cannot displace the record's own authors. Absent on a journal article and on a book that credits no editors.",
+         "items": {
+          "description": "One editor, \"Surname Initials\" as ESummary renders it",
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "pmcId": {
+         "description": "PMC ID",
+         "type": "string"
+        },
+        "pmcUrl": {
+         "description": "PMC URL",
+         "type": "string"
+        },
+        "pmid": {
+         "description": "PubMed ID",
+         "type": "string"
+        },
+        "pubDate": {
+         "description": "Publication date as YYYY-MM-DD; a month- or year-only date reads as the first day of that month or year. On an NCBI Bookshelf chapter (`docType` \"chapter\") it is the chapter's own date \u2014 its last revision, otherwise its contribution \u2014 not the year its book began.",
+         "type": "string"
+        },
+        "publisherName": {
+         "description": "Publisher of the book an NCBI Bookshelf record belongs to. Present only on a book record; absent on a journal article.",
+         "type": "string"
+        },
+        "pubmedUrl": {
+         "description": "PubMed URL",
+         "type": "string"
+        },
+        "source": {
+         "description": "Journal the article appeared in. Absent on an NCBI Bookshelf record, which has no journal \u2014 its venue is in `bookTitle` and `publisherName` instead, and `docType` says which kind of record it is.",
+         "type": "string"
+        },
+        "title": {
+         "description": "Article title",
+         "type": "string"
+        }
+       },
+       "required": [
+        "pmid"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "totalCount": {
+      "description": "Total matching articles",
+      "type": "number"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "includeGrants": {
+      "default": false,
+      "description": "Include grant information",
+      "type": "boolean"
+     },
+     "includeMesh": {
+      "default": true,
+      "description": "Include MeSH terms",
+      "type": "boolean"
+     },
+     "maxResponseCharacters": {
+      "description": "Opt-in ceiling for the whole response, in characters. Each article is measured as the JSON record it is returned as \u2014 title, abstract, authors, journal, MeSH terms, grants, identifiers, every field it carries. Articles are kept in response order until the next one would cross the ceiling; that article and the rest are deferred whole (never partially populated) and listed in `deferred.ids`. Response envelope fields \u2014 counts, `unavailablePmids`, `deferred` itself \u2014 are not counted. Omit to return every resolved article.",
+      "maximum": 1000000,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "pmids": {
+      "description": "PubMed IDs to fetch",
+      "items": {
+       "pattern": "^\\d+$",
+       "type": "string"
+      },
+      "maxItems": 200,
+      "minItems": 1,
+      "type": "array"
+     }
+    },
+    "required": [
+     "pmids"
+    ],
+    "type": "object"
+   },
+   "name": "pubmed_fetch_articles",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "articles",
+       "totalReturned"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "articles": {
+      "description": "Parsed articles",
+      "items": {
+       "additionalProperties": false,
+       "description": "Parsed PubMed article",
+       "properties": {
+        "abstractText": {
+         "description": "Abstract text",
+         "type": "string"
+        },
+        "affiliations": {
+         "description": "Deduplicated author affiliations",
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "articleDates": {
+         "description": "Dates of the record itself, each named by `dateType`. On a journal article, PubMed's `ArticleDate` entries (`Electronic` \u2014 the electronic publication date). On a Bookshelf record, its own `ContributionDate` (when the chapter was contributed) and `DateRevised` (when it was last updated), distinct from the containing book's dates in `book`; `pubmed_format_citations` cites a chapter by `DateRevised` when present, otherwise `ContributionDate`. Absent when NCBI supplies none.",
+         "items": {
+          "additionalProperties": false,
+          "description": "Dated article event",
+          "properties": {
+           "dateType": {
+            "description": "Date type",
+            "type": "string"
+           },
+           "day": {
+            "description": "Day",
+            "type": "string"
+           },
+           "month": {
+            "description": "Month",
+            "type": "string"
+           },
+           "year": {
+            "description": "Year",
+            "type": "string"
+           }
+          },
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "authors": {
+         "description": "Author list. On a `book-chapter` these are the chapter's own authors, never the book's editors, which are in `book.editors`. Empty on a Bookshelf record that credits neither.",
+         "items": {
+          "additionalProperties": false,
+          "description": "Author record",
+          "properties": {
+           "affiliationIndices": {
+            "description": "Indices into the top-level affiliations array",
+            "items": {
+             "type": "number"
+            },
+            "type": "array"
+           },
+           "collectiveName": {
+            "description": "Group/collective author name",
+            "type": "string"
+           },
+           "firstName": {
+            "description": "First/given name",
+            "type": "string"
+           },
+           "initials": {
+            "description": "Author initials",
+            "type": "string"
+           },
+           "lastName": {
+            "description": "Last name",
+            "type": "string"
+           },
+           "orcid": {
+            "description": "ORCID identifier",
+            "type": "string"
+           }
+          },
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "book": {
+         "additionalProperties": false,
+         "description": "The containing book of a `book-chapter`, or the book itself on a `book` record. Present only on those two record types, and never a stand-in for `journalInfo`.",
+         "properties": {
+          "accession": {
+           "description": "NCBI Bookshelf accession from `ArticleIdList` (`bookaccession`), e.g. \"NBK1247\". The record is readable at `https://www.ncbi.nlm.nih.gov/books/<accession>/`.",
+           "type": "string"
+          },
+          "beginningDate": {
+           "description": "First year of a continuously-updated book, from `Book/BeginningDate` (GeneReviews runs from 1993). Absent on a book published once.",
+           "type": "string"
+          },
+          "collectionTitle": {
+           "description": "Series the book belongs to, from `Book/CollectionTitle` (e.g. \"ADA Clinical Compendia Series\"). Absent for a book outside a series.",
+           "type": "string"
+          },
+          "doi": {
+           "description": "The book's own DOI, from `Book/ELocationID` with `EIdType=\"doi\"`. Distinct from the record-level `doi`, which is the chapter's: a chapter does not inherit this one.",
+           "type": "string"
+          },
+          "edition": {
+           "description": "Edition statement from `Book/Edition`. Rare on Bookshelf titles \u2014 absent unless NCBI supplies one.",
+           "type": "string"
+          },
+          "editors": {
+           "description": "Editors of the containing book, from `Book/AuthorList` marked `Type=\"editors\"`. Kept out of `authors`, which carries the chapter's own writers. Absent when the book credits no editors.",
+           "items": {
+            "additionalProperties": false,
+            "description": "One editor of the containing book. Name parts only \u2014 editors are a citation credit, not a contributor record, so no affiliations or ORCID are reported for them.",
+            "properties": {
+             "collectiveName": {
+              "description": "Group or committee credited as editor, when the entry names an organization rather than a person. Mutually exclusive with the name-part fields.",
+              "type": "string"
+             },
+             "firstName": {
+              "description": "Editor given name as NCBI supplies it (`ForeName`, often \"Margaret P\"). Absent when NCBI carries initials only, or on a group editor.",
+              "type": "string"
+             },
+             "initials": {
+              "description": "Editor initials with no separators (e.g. \"MP\"). Absent when NCBI supplies none, or on a group editor.",
+              "type": "string"
+             },
+             "lastName": {
+              "description": "Editor surname, from the book's `Book/AuthorList Type=\"editors\"` entry. Absent on a group editor, which carries `collectiveName` instead.",
+              "type": "string"
+             }
+            },
+            "type": "object"
+           },
+           "type": "array"
+          },
+          "endingDate": {
+           "description": "Last year of a closed date range, from `Book/EndingDate`. Absent while a book is still being updated, which leaves the range open-ended.",
+           "type": "string"
+          },
+          "isbns": {
+           "description": "Every `Book/Isbn` on the record. A book commonly carries a print and an electronic ISBN, so this is a list. Absent for a Bookshelf title with no ISBN, which is most of them.",
+           "items": {
+            "description": "One ISBN, verbatim as NCBI reports it \u2014 leading zeros intact",
+            "type": "string"
+           },
+           "type": "array"
+          },
+          "medium": {
+           "description": "Medium the book is published in, from `Book/Medium` \u2014 \"Internet\" wherever NCBI supplies it. Absent when NCBI supplies none; it is never defaulted.",
+           "type": "string"
+          },
+          "pubDate": {
+           "description": "Publication year from `Book/PubDate`. Year only \u2014 NCBI's month and day are not reported, since no citation style uses them for a book.",
+           "type": "string"
+          },
+          "publisher": {
+           "description": "Publisher of the book, from `Book/Publisher/PublisherName`.",
+           "type": "string"
+          },
+          "publisherLocation": {
+           "description": "Place of publication, from `Book/Publisher/PublisherLocation` (e.g. \"Seattle (WA)\"). Absent when NCBI supplies no place.",
+           "type": "string"
+          },
+          "title": {
+           "description": "Title of the containing book, from `Book/BookTitle` (e.g. \"GeneReviews\u00ae\"). On a `book` record this is the same value as the record's own `title`.",
+           "type": "string"
+          }
+         },
+         "type": "object"
+        },
+        "commentsCorrections": {
+         "description": "Records NCBI links to this article \u2014 for example retraction notices, errata, expressions of concern, comments, and updates \u2014 from `CommentsCorrectionsList`, in NCBI's order and uncapped. `Cites` entries are excluded: they list a bibliography, which `pubmed_find_related` covers with its `references` relationship. Read this alongside `publicationTypes`, not in place of it: that field describes the record itself, and a corrected or questioned article often carries no matching type. Absent when NCBI links nothing other than `Cites` entries, and never set on `book-chapter` or `book` records.",
+         "items": {
+          "additionalProperties": false,
+          "description": "One record NCBI links to this article and published separately from it \u2014 for example a retraction notice, erratum, expression of concern, comment, update, or republication.",
+          "properties": {
+           "note": {
+            "description": "NCBI's note on the link, e.g. what an erratum corrected (\"Fu\u03b2er, Fabian [corrected to Fu\u00dfer, Fabian]\"). Absent unless NCBI supplies one.",
+            "type": "string"
+           },
+           "pmid": {
+            "description": "PMID of the linked record \u2014 pass it to `pubmed_fetch_articles` to read that record. Absent when the linked record has no PMID, as with many errata.",
+            "type": "string"
+           },
+           "refSource": {
+            "description": "Citation of the linked record as NCBI writes it (e.g. \"Lancet. 2010 Feb 6;375(9713):445. doi: 10.1016/S0140-6736(10)60175-4.\").",
+            "type": "string"
+           },
+           "refType": {
+            "description": "Link type, verbatim from NCBI's `RefType` \u2014 e.g. \"RetractionIn\", \"RetractionOf\", \"ErratumIn\", \"ErratumFor\", \"ExpressionOfConcernIn\", \"CommentIn\", \"CommentOn\", \"UpdateIn\". The set is open: treat an unfamiliar value as opaque.",
+            "type": "string"
+           }
+          },
+          "required": [
+           "refType",
+           "refSource"
+          ],
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "doi": {
+         "description": "DOI, cased as NCBI reports it (usually the publisher's mixed case). DOIs are case-insensitive by spec and no case normalization is applied here, so the same DOI can arrive in a different case from `pubmed_europepmc_search` and `pubmed_europepmc_fetch` (NCBI `10.1056/NEJMoa2212948`, Europe PMC `10.1056/nejmoa2212948`) \u2014 a byte-for-byte comparison across the two reports a false mismatch.",
+         "type": "string"
+        },
+        "grantList": {
+         "description": "Grant information",
+         "items": {
+          "additionalProperties": false,
+          "description": "Grant record",
+          "properties": {
+           "acronym": {
+            "description": "Acronym of the funding institute or agency from `Grant/Acronym` (e.g. \"EY\" for the National Eye Institute) \u2014 it names the funder, never the grant, so it is no substitute for `grantId`.",
+            "type": "string"
+           },
+           "agency": {
+            "description": "Funding agency",
+            "type": "string"
+           },
+           "country": {
+            "description": "Agency country",
+            "type": "string"
+           },
+           "grantId": {
+            "description": "Grant identifier",
+            "type": "string"
+           }
+          },
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "journalInfo": {
+         "additionalProperties": false,
+         "description": "Journal information. Present on `journal-article` records only \u2014 absent on `book-chapter` and `book` records, because a Bookshelf record has no journal and its book title is never reported as one; read `book` for those. (#114)",
+         "properties": {
+          "eIssn": {
+           "description": "Electronic ISSN",
+           "type": "string"
+          },
+          "elocationId": {
+           "description": "Electronic article locator from NCBI `ELocationID` \u2014 the publisher-assigned article number (e.g. \"2400512\"). Journals that assign article numbers instead of pages often omit pagination entirely, leaving this the only locator. Never a substitute for `pages`, and never the DOI: a DOI-typed `ELocationID` is reported in `doi` instead. Absent when the only locator NCBI supplies is marked invalid.",
+           "type": "string"
+          },
+          "elocationIdType": {
+           "description": "Type of `elocationId`, from NCBI's `EIdType` attribute \u2014 \"pii\" in practice. Free-form: NCBI does not close the set, so treat an unfamiliar value as opaque.",
+           "type": "string"
+          },
+          "isoAbbreviation": {
+           "description": "ISO journal abbreviation",
+           "type": "string"
+          },
+          "issn": {
+           "description": "Print ISSN",
+           "type": "string"
+          },
+          "issue": {
+           "description": "Issue number",
+           "type": "string"
+          },
+          "pages": {
+           "description": "Page range (e.g. \"48-55\")",
+           "type": "string"
+          },
+          "publicationDate": {
+           "additionalProperties": false,
+           "description": "Journal publication date",
+           "properties": {
+            "day": {
+             "description": "Publication day",
+             "type": "string"
+            },
+            "medlineDate": {
+             "description": "Non-standard date string (e.g. \"2000 Spring\")",
+             "type": "string"
+            },
+            "month": {
+             "description": "Publication month",
+             "type": "string"
+            },
+            "year": {
+             "description": "Publication year",
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "title": {
+           "description": "Full journal title",
+           "type": "string"
+          },
+          "volume": {
+           "description": "Volume number",
+           "type": "string"
+          }
+         },
+         "type": "object"
+        },
+        "keywords": {
+         "description": "Keywords",
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "meshTerms": {
+         "description": "MeSH terms",
+         "items": {
+          "additionalProperties": false,
+          "description": "MeSH descriptor term",
+          "properties": {
+           "descriptorName": {
+            "description": "MeSH descriptor name",
+            "type": "string"
+           },
+           "descriptorUi": {
+            "description": "MeSH descriptor unique ID",
+            "type": "string"
+           },
+           "isMajorTopic": {
+            "description": "Whether this is a major topic of the article",
+            "type": "boolean"
+           },
+           "qualifiers": {
+            "description": "MeSH qualifiers/subheadings",
+            "items": {
+             "additionalProperties": false,
+             "description": "MeSH qualifier/subheading",
+             "properties": {
+              "isMajorTopic": {
+               "description": "Whether this qualifier is a major topic",
+               "type": "boolean"
+              },
+              "qualifierName": {
+               "description": "Qualifier/subheading name",
+               "type": "string"
+              },
+              "qualifierUi": {
+               "description": "Qualifier unique ID",
+               "type": "string"
+              }
+             },
+             "required": [
+              "qualifierName",
+              "isMajorTopic"
+             ],
+             "type": "object"
+            },
+            "type": "array"
+           }
+          },
+          "required": [
+           "isMajorTopic"
+          ],
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "pmcId": {
+         "description": "PMC ID",
+         "type": "string"
+        },
+        "pmcUrl": {
+         "description": "PMC full text URL",
+         "type": "string"
+        },
+        "pmid": {
+         "description": "PubMed ID",
+         "type": "string"
+        },
+        "publicationTypes": {
+         "description": "Publication types",
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "pubmedUrl": {
+         "description": "PubMed article URL",
+         "type": "string"
+        },
+        "recordType": {
+         "description": "Which kind of PubMed record this is, set from the XML element it arrived in: `journal-article` for an ordinary article, `book-chapter` for an NCBI Bookshelf chapter, `book` for a whole Bookshelf book. Read this to tell the three apart \u2014 `publicationTypes` cannot, because PubMed labels a Bookshelf record \"Review\" or \"Study Guide\". `journalInfo` is present only on `journal-article`; `book` only on the other two.",
+         "enum": [
+          "journal-article",
+          "book-chapter",
+          "book"
+         ],
+         "type": "string"
+        },
+        "title": {
+         "description": "Article title \u2014 the chapter title on a `book-chapter`, and the book title on a `book` record, where it repeats `book.title`.",
+         "type": "string"
+        }
+       },
+       "required": [
+        "recordType"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "deferred": {
+      "additionalProperties": false,
+      "description": "Continuation state for articles the whole-response budget withheld. Present only when `maxResponseCharacters` deferred at least one article.",
+      "properties": {
+       "deferredCount": {
+        "description": "Articles that resolved but were withheld to stay under the ceiling",
+        "type": "number"
+       },
+       "ids": {
+        "description": "PMIDs of the deferred articles, in response order. Re-call `pubmed_fetch_articles` with these as `pmids` and the same other inputs to retrieve them. Never contains a PMID from `unavailablePmids`.",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "maxResponseCharacters": {
+        "description": "The `maxResponseCharacters` ceiling this response was budgeted against",
+        "type": "number"
+       },
+       "nextDeferredCharacters": {
+        "description": "Serialized size of the next deferred article \u2014 the first entry in `ids`, where the response stopped. Raise `maxResponseCharacters` to at least this to make progress; a smaller article further down `ids` cannot be reached until this one fits.",
+        "type": "number"
+       },
+       "returnedCharacters": {
+        "description": "Serialized characters the returned article records account for",
+        "type": "number"
+       }
+      },
+      "required": [
+       "maxResponseCharacters",
+       "returnedCharacters",
+       "deferredCount",
+       "ids",
+       "nextDeferredCharacters"
+      ],
+      "type": "object"
+     },
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `queue_full`: The local NCBI request queue shed the call \u2014 the queue is full, or the call cannot start before its total deadline (for example behind the cooldown that follows an NCBI 429). `ncbi_unreachable`: NCBI E-utilities failed on every attempt the retry budget allowed \u2014 retries ran out, or the next backoff would overrun the total deadline. `ncbi_rate_limited`: NCBI answered HTTP 429 (too many requests) and the call stopped on it \u2014 retries ran out, the next backoff would overrun the total deadline, or the Retry-After NCBI named outlasts the time left or the 30-second backoff cap. `ncbi_deadline_exceeded`: The total NCBI request deadline expired before NCBI answered successfully \u2014 mid-request, while queued, or during a retry backoff. `ncbi_invalid_response`: NCBI returned a body that could not be parsed (invalid XML/JSON). `ncbi_resource_not_found`: NCBI returned a structured \"not found\" error for the requested ID(s). `invalid_efetch_response`: NCBI EFetch returned a payload missing the PubmedArticleSet wrapper. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "queue_full",
+           "ncbi_unreachable",
+           "ncbi_rate_limited",
+           "ncbi_deadline_exceeded",
+           "ncbi_invalid_response",
+           "ncbi_resource_not_found",
+           "invalid_efetch_response"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "notice": {
+      "description": "Optional guidance when no articles were returned \u2014 points to discovery tools \u2014 or when `maxResponseCharacters` deferred articles, naming how to retrieve them. Absent on successful unbudgeted fetches.",
+      "type": "string"
+     },
+     "totalReturned": {
+      "description": "Number of articles in this response. Under a `maxResponseCharacters` budget this counts the kept articles only; `deferred.deferredCount` covers the rest.",
+      "type": "number"
+     },
+     "truncated": {
+      "description": "True when `maxResponseCharacters` withheld at least one resolved article. Absent when the response carries every article that resolved. The continuation state is in `deferred`.",
+      "type": "boolean"
+     },
+     "unavailablePmids": {
+      "description": "PMIDs PubMed returned no record for. That is all this reports: PubMed omits an unknown PMID silently, with no error and no reason, so the absence says nothing about whether the PMID exists. Reported in full regardless of where a `maxResponseCharacters` cutoff lands \u2014 these are misses, not deferrals. Use `pubmed_search_articles` to find PMIDs that do resolve.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "dois": {
+      "description": "DOIs to resolve (e.g. [\"10.21203/rs.3.rs-9010375/v1\"]), one per element. Combinable with `pmcids` and `pmids` \u2014 at most 10 distinct identifiers across the three. Resolved to a PMCID via the PMC ID Converter and returned as structured JATS when the article is in PMC; DOIs with no PMC counterpart (preprints, EPMC-only OA) fall through to Europe PMC, then Unpaywall, when those layers are enabled.",
+      "items": {
+       "pattern": "^10\\.[^\\s,]+\\/[^\\s,]+$",
+       "type": "string"
+      },
+      "maxItems": 10,
+      "minItems": 1,
+      "type": "array"
+     },
+     "includeAssets": {
+      "default": true,
+      "description": "Include the article's figures and supplementary material \u2014 `assets[]`, each with its label, caption, enclosing section and deposit pointer. On by default because it is cheaper than tables: a median asset-bearing article grows about 10%, and the body prose already refers to these by label. Set false to omit them, which also removes the `[Figure: \u2026]` / `[Supplementary: \u2026]` markers from the section text, since without the array they point at nothing. Prose-shaped blocks \u2014 lists, definition lists, block quotes, boxed text, preformatted blocks, displayed formulae \u2014 are section text rather than assets and this switch never affects them. Applies to `source=pmc` results only.",
+      "type": "boolean"
+     },
+     "includeReferences": {
+      "default": false,
+      "description": "Include reference list. Applies to `source=pmc` results only.",
+      "type": "boolean"
+     },
+     "includeTables": {
+      "default": true,
+      "description": "Include the article's tables \u2014 cells, captions, labels and footnotes. On by default because a dropped table takes its numbers with it. Table-dense articles pay for it: rendered tables typically add 12\u201317% to an article record and can more than double it. Set false to omit them, or cap the cost with `maxCharacters`, which drops tables it cannot fit whole. Applies to `source=pmc` results only.",
+      "type": "boolean"
+     },
+     "maxCharacters": {
+      "description": "Per-article budget for body text, in characters. Counts `source=pmc` section and subsection text \u2014 which carries the inline blocks the parser renders in place, such as lists, definition lists, block quotes, boxed text, preformatted blocks and displayed formulae \u2014 plus table label, caption, cell and footnote text and asset label, caption and `href` text; or the `source=unpaywall` `content` body. Titles, abstracts, identifiers, and references are never counted or shortened. Shortened text ends at the last word boundary inside its allowance, so it can come back a few characters under it. The counted unit is that text alone \u2014 the Markdown grid `content[]` renders around the cells (pipes, padding, the divider row, headings) is scaffolding this budget does not measure, so a table renders longer than it costs here. Sections are served first, then tables, then assets, each spending what is left, in document order \u2014 admission stops at the first entry that does not fit, and every entry from there on is dropped whole rather than cut mid-row or returned with a shortened caption, counted in `truncation.omittedTables` / `truncation.omittedAssets` and named in `truncation.articles[].omittedTableNames` / `omittedAssetNames`. Applied after `sections`, `maxSections`, `includeReferences`, `includeTables`, and `includeAssets`, so semantic filtering is unaffected. This knob alone bounds only bodies: the response-wide ceiling it implies is this value times the number of articles returned, plus every uncounted field. Use `maxResponseCharacters` for a true whole-response ceiling. Omit for the full body.",
+      "maximum": 1000000,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "maxCharactersPerSection": {
+      "description": "Budget for a single top-level body section, in characters, counting the section text plus its subsections. Combine with `maxCharacters` to cap both one section and the article; the tighter of the two wins. Applies to `source=pmc` results only.",
+      "maximum": 1000000,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "maxResponseCharacters": {
+      "description": "Opt-in ceiling for the whole response, in characters \u2014 the true response-wide counterpart to the per-article `maxCharacters`. Each article is measured as the JSON record it is returned as, after every filter and the per-article body budget: title, abstract, body sections, references, identifiers, license and source metadata \u2014 every field it carries. One ledger covers all tiers, so PMC-, Europe PMC-, and Unpaywall-served articles spend the same budget. Articles are kept in response order until the next one would cross the ceiling; that article and the rest are deferred whole (never partially populated) and listed in `deferred.ids`. Response envelope fields \u2014 counts, `unavailable`, `truncation`, `deferred` itself \u2014 are not counted. Omit to return every resolved article.",
+      "maximum": 1000000,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "maxSections": {
+      "description": "Maximum top-level body sections. Applies to `source=pmc` results only.",
+      "maximum": 50,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "overflowMode": {
+      "default": "truncate",
+      "description": "How to spend `maxCharacters` across an article that exceeds it. truncate: fill sections in document order, so early sections stay whole, the section the budget runs out in is cut, and every section or subsection past that point is dropped (counted in `truncation.omittedSections`). outline: split the budget evenly so every section and subsection keeps its heading, and an excerpt as far as the budget reaches \u2014 a heading the budget left empty is marked as such in the rendered text. Use it to survey what an article contains before requesting specific `sections`. Ignored when no budget is set, and identical for `source=unpaywall` bodies, which have no headings to preserve.",
+      "enum": [
+       "truncate",
+       "outline"
+      ],
+      "type": "string"
+     },
+     "pmcids": {
+      "description": "PMC IDs to fetch (e.g. [\"PMC9575052\"]). Combinable with `pmids` and `dois` \u2014 at most 10 distinct identifiers across the three. PMC IDs with no retrievable full text fall through to Europe PMC, then to Unpaywall on the DOI the chain resolves for them.",
+      "items": {
+       "pattern": "^(?:PMC)?\\d+$",
+       "type": "string"
+      },
+      "maxItems": 10,
+      "minItems": 1,
+      "type": "array"
+     },
+     "pmids": {
+      "description": "PubMed IDs. Combinable with `pmcids` and `dois` \u2014 at most 10 distinct identifiers across the three. Articles in PMC are returned as structured JATS; articles not in PMC fall through to Europe PMC (when EPMC has a `fullTextXML`), then to Unpaywall when `UNPAYWALL_EMAIL` is set and a DOI is available.",
+      "items": {
+       "pattern": "^\\d+$",
+       "type": "string"
+      },
+      "maxItems": 10,
+      "minItems": 1,
+      "type": "array"
+     },
+     "sections": {
+      "description": "Filter to specific sections by title (e.g. [\"Introduction\", \"Methods\", \"Results\", \"Discussion\"]). A term matches a section or subsection title at any nesting depth, case-insensitively, as a substring \u2014 \"resul\" matches \"Results\". A section whose own title matches is returned whole; one kept only because a nested subsection matched keeps its heading as a breadcrumb, with its own text cleared and only the matching branch beneath it. Tables and assets narrow with the filter: one whose section did not survive, or that names no section, is dropped. Empty strings are skipped, so `[\"\"]` applies no filter; an element of only whitespace or invisible characters, such as a zero-width space, is rejected. Applies to `source=pmc` results only.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "name": "pubmed_fetch_fulltext",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "articles",
+       "totalReturned"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "articles": {
+      "description": "Full-text articles",
+      "items": {
+       "description": "Full-text article; shape depends on `source` (pmc = structured JATS, unpaywall = best-effort)",
+       "oneOf": [
+        {
+         "additionalProperties": false,
+         "description": "Structured JATS full-text article. `viaSource` records whether the JATS came from NCBI PMC or Europe PMC.",
+         "properties": {
+          "abstract": {
+           "description": "Abstract",
+           "type": "string"
+          },
+          "affiliations": {
+           "description": "Author affiliations",
+           "items": {
+            "type": "string"
+           },
+           "type": "array"
+          },
+          "articleType": {
+           "description": "Article type",
+           "type": "string"
+          },
+          "assets": {
+           "description": "Every `<fig>` and `<supplementary-material>` the article carries, in document order \u2014 from the body and from `<floats-group>`, `<back>` and appendices alike. Each one lifted from the body leaves a `[Figure: <label>]` or `[Supplementary: <label>]` marker at its position in the section text, so reading order survives the lift. Absent when the article deposits none, when `includeAssets` is false, or when a `sections` filter left none standing.",
+           "items": {
+            "additionalProperties": false,
+            "description": "One figure or supplementary-material item, with its caption, pointer, and section",
+            "properties": {
+             "assetType": {
+              "description": "Which captioned element this came from \u2014 `figure` for a `<fig>`, `supplementary-material` for a `<supplementary-material>` deposit",
+              "enum": [
+               "figure",
+               "supplementary-material"
+              ],
+              "type": "string"
+             },
+             "caption": {
+              "description": "Caption text, with the label excluded",
+              "type": "string"
+             },
+             "href": {
+              "description": "The `<graphic>`/`<media>` `@xlink:href` exactly as deposited \u2014 a pointer into the PMC deposit (`MOL2-20-1253-g001.jpg`), not a fetchable URL. No absolute form of it resolves; read the rendered article at `pmcUrl` instead. Absent when the deposit names no file.",
+              "type": "string"
+             },
+             "id": {
+              "description": "JATS `id` attribute \u2014 the target body-text cross-references point at",
+              "type": "string"
+             },
+             "label": {
+              "description": "Display label as printed, e.g. `Fig. 1`",
+              "type": "string"
+             },
+             "sectionTitle": {
+              "description": "Title of the innermost section enclosing the asset, wherever that section sits \u2014 body, `<back>` matter, or an appendix all count. Absent for an asset inside no section at all, such as a `<floats-group>` deposit.",
+              "type": "string"
+             }
+            },
+            "required": [
+             "assetType"
+            ],
+            "type": "object"
+           },
+           "type": "array"
+          },
+          "authors": {
+           "description": "Authors",
+           "items": {
+            "additionalProperties": false,
+            "description": "Author entry",
+            "properties": {
+             "collectiveName": {
+              "description": "Group name",
+              "type": "string"
+             },
+             "givenNames": {
+              "description": "Given names",
+              "type": "string"
+             },
+             "lastName": {
+              "description": "Last name",
+              "type": "string"
+             }
+            },
+            "type": "object"
+           },
+           "type": "array"
+          },
+          "doi": {
+           "description": "DOI, cased as the tier that served this record reports it (NCBI PMC, Europe PMC, or Unpaywall). DOIs are case-insensitive by spec and no case normalization is applied here, so casing can differ between tiers and from other tools \u2014 compare case-insensitively.",
+           "type": "string"
+          },
+          "epmcId": {
+           "description": "Europe PMC record id \u2014 present when `viaSource` is `europepmc`",
+           "type": "string"
+          },
+          "epmcSource": {
+           "description": "Europe PMC source code when `viaSource` is `europepmc`. Common values: `MED` (PubMed-derived), `PMC` (PMC counterpart), `PPR` (preprint), `PAT` (patent), `AGR` (Agricola), plus less common codes (`CTX`, `CBA`, `ETH`, `HIR`). Treat as opaque \u2014 EPMC may introduce new codes.",
+           "type": "string"
+          },
+          "journal": {
+           "additionalProperties": false,
+           "description": "Journal information",
+           "properties": {
+            "elocationId": {
+             "description": "Electronic article locator from JATS `<elocation-id>` \u2014 the publisher-assigned article number (e.g. \"e20542\"). Journals that assign article numbers deposit no `<fpage>`, so this is the only locator on roughly half of PMC records. Never a substitute for `pages`; JATS carries no type attribute, so there is no counterpart to the `elocationIdType` that `pubmed_fetch_articles` reports.",
+             "type": "string"
+            },
+            "issn": {
+             "description": "ISSN",
+             "type": "string"
+            },
+            "issue": {
+             "description": "Issue number",
+             "type": "string"
+            },
+            "pages": {
+             "description": "Page range",
+             "type": "string"
+            },
+            "title": {
+             "description": "Journal title",
+             "type": "string"
+            },
+            "volume": {
+             "description": "Volume number",
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "keywords": {
+           "description": "Keywords",
+           "items": {
+            "type": "string"
+           },
+           "type": "array"
+          },
+          "pmcId": {
+           "description": "PMC ID \u2014 present for NCBI PMC records and Europe PMC entries that have a PMC counterpart. Absent for EPMC-only records like preprints; use `epmcId` in that case.",
+           "type": "string"
+          },
+          "pmcUrl": {
+           "description": "PMC URL \u2014 derived from `pmcId` when present",
+           "type": "string"
+          },
+          "pmid": {
+           "description": "PubMed ID",
+           "type": "string"
+          },
+          "publicationDate": {
+           "additionalProperties": false,
+           "description": "Publication date",
+           "properties": {
+            "day": {
+             "description": "Publication day",
+             "type": "string"
+            },
+            "month": {
+             "description": "Publication month",
+             "type": "string"
+            },
+            "year": {
+             "description": "Publication year",
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "pubmedUrl": {
+           "description": "PubMed URL",
+           "type": "string"
+          },
+          "references": {
+           "description": "Reference list",
+           "items": {
+            "additionalProperties": false,
+            "description": "Reference entry",
+            "properties": {
+             "citation": {
+              "description": "Citation text",
+              "type": "string"
+             },
+             "id": {
+              "description": "Reference ID",
+              "type": "string"
+             },
+             "label": {
+              "description": "Reference label",
+              "type": "string"
+             }
+            },
+            "required": [
+             "citation"
+            ],
+            "type": "object"
+           },
+           "type": "array"
+          },
+          "sections": {
+           "description": "Article body sections",
+           "items": {
+            "additionalProperties": false,
+            "description": "Article body section",
+            "properties": {
+             "label": {
+              "description": "Section label",
+              "type": "string"
+             },
+             "subsections": {
+              "description": "Nested subsections",
+              "items": {
+               "additionalProperties": false,
+               "description": "Article subsection",
+               "properties": {
+                "label": {
+                 "description": "Subsection label",
+                 "type": "string"
+                },
+                "text": {
+                 "description": "Subsection body text. Sections nested deeper than this level are folded in here in document order, each heading rendered on its own line above its text.",
+                 "type": "string"
+                },
+                "title": {
+                 "description": "Subsection heading",
+                 "type": "string"
+                }
+               },
+               "required": [
+                "text"
+               ],
+               "type": "object"
+              },
+              "type": "array"
+             },
+             "text": {
+              "description": "Section body text",
+              "type": "string"
+             },
+             "title": {
+              "description": "Section heading",
+              "type": "string"
+             }
+            },
+            "required": [
+             "text"
+            ],
+            "type": "object"
+           },
+           "type": "array"
+          },
+          "source": {
+           "const": "pmc",
+           "description": "Structured JATS \u2014 same DTD whether sourced from NCBI PMC or Europe PMC",
+           "type": "string"
+          },
+          "tables": {
+           "description": "Every `<table-wrap>` the article carries, in document order \u2014 from the body and from `<floats-group>`, `<back>` and appendices alike. Absent when the article deposits none, when `includeTables` is false, or when a `sections` filter left none standing.",
+           "items": {
+            "additionalProperties": false,
+            "description": "One table from the article, with its cells, caption, and owning section",
+            "properties": {
+             "caption": {
+              "description": "Caption text, with the label excluded",
+              "type": "string"
+             },
+             "footnotes": {
+              "description": "`<table-wrap-foot>` text, one line per footnote or paragraph, joined by `\\n`. A footnote marker deposited as a `<label>` leads its line, followed by a space (`* No patient \u2026`).",
+              "type": "string"
+             },
+             "headerRowCount": {
+              "description": "How many leading `rows` entries are header rows \u2014 a `<thead>` block, or leading rows made entirely of `<th>`. 0 when the table declares none. Several header rows stack: read one column top to bottom for its full header path.",
+              "type": "number"
+             },
+             "id": {
+              "description": "JATS `id` attribute \u2014 the target body-text cross-references point at",
+              "type": "string"
+             },
+             "label": {
+              "description": "Table label as printed, e.g. `TABLE 1`",
+              "type": "string"
+             },
+             "rows": {
+              "description": "Cell text by row, in document order, one entry per grid column. `colspan` and `rowspan` are expanded, so a cell covering several columns or rows repeats its text across each cell it covers and a well-formed table is rectangular \u2014 align on position from the left, and read a repeated value as one spanning cell rather than several measurements. A line break in a cell \u2014 a `<break/>`, a paragraph, or a list item in the source \u2014 is kept as `\\n`, so `1.08\\n2.44` is two values; superscripts and other inline markup are never spaced (`0.108a`). Empty when `unextractableReason` is set.",
+              "items": {
+               "description": "One row, as cell text by grid column",
+               "items": {
+                "type": "string"
+               },
+               "type": "array"
+              },
+              "type": "array"
+             },
+             "sectionTitle": {
+              "description": "Title of the innermost section enclosing the table, wherever that section sits \u2014 body, `<back>` matter, or an appendix all count, and in back matter the section name is the only positional cue there is. Absent only for a table inside no section at all, such as a `<floats-group>` deposit.",
+              "type": "string"
+             },
+             "unextractableReason": {
+              "description": "Why `rows` is empty \u2014 set only then. graphic-only: the table was deposited as an image with no underlying markup. cals-tgroup: the table uses the CALS `<tgroup>` model, which this server does not extract (0 of 283 tables in an open-access survey used it). no-rows: the markup carried no rows. The label and caption are still returned, so a table that could not be read is visible rather than silently missing.",
+              "enum": [
+               "cals-tgroup",
+               "graphic-only",
+               "no-rows"
+              ],
+              "type": "string"
+             }
+            },
+            "required": [
+             "headerRowCount",
+             "rows"
+            ],
+            "type": "object"
+           },
+           "type": "array"
+          },
+          "title": {
+           "description": "Article title",
+           "type": "string"
+          },
+          "viaSource": {
+           "description": "Which layer produced the JATS: `pmc` for NCBI PMC EFetch (db=pmc), `europepmc` for Europe PMC `fullTextXML`. Both paths return the same JATS shape; the discriminator records origin for observability and license attribution.",
+           "enum": [
+            "pmc",
+            "europepmc"
+           ],
+           "type": "string"
+          }
+         },
+         "required": [
+          "source",
+          "viaSource",
+          "sections"
+         ],
+         "type": "object"
+        },
+        {
+         "additionalProperties": false,
+         "description": "Best-effort full text from an open-access copy",
+         "properties": {
+          "content": {
+           "description": "Full article text \u2014 Markdown or plain text per `contentFormat`",
+           "type": "string"
+          },
+          "contentFormat": {
+           "description": "How `content` was extracted. html-markdown: Defuddle extracted Markdown from an HTML landing page; light section structure may survive but is not guaranteed. pdf-text: unpdf extracted plain text from a PDF; no section, reference, or heading structure.",
+           "enum": [
+            "html-markdown",
+            "pdf-text"
+           ],
+           "type": "string"
+          },
+          "doi": {
+           "description": "DOI used to locate the open-access copy",
+           "type": "string"
+          },
+          "hostType": {
+           "description": "`publisher` or `repository` \u2014 where the OA copy is hosted",
+           "type": "string"
+          },
+          "journalName": {
+           "description": "Journal or repository name from Unpaywall's record for the DOI (e.g. `medRxiv` for a medRxiv preprint). Absent when Unpaywall has none.",
+           "type": "string"
+          },
+          "license": {
+           "description": "License identifier from Unpaywall (e.g. cc-by, cc0)",
+           "type": "string"
+          },
+          "pmcId": {
+           "description": "PMC ID this article was requested under, in `PMC<digits>` form \u2014 present when a `pmcids` entry named it, absent when it was requested under a PMID or DOI. When several identifiers name one article, it is requested under the first to reach it: `pmcids`, then `pmids`, then `dois`. Ties the article back to the requested identifier, which `unavailable[]` keys on for the ids that found nothing.",
+           "type": "string"
+          },
+          "pmid": {
+           "description": "PubMed ID this article was requested under \u2014 present when it was requested under a `pmids` entry, absent when under a PMC ID or DOI (see `pmcId` for which identifier an article several of them name is requested under)",
+           "type": "string"
+          },
+          "pubmedUrl": {
+           "description": "PubMed URL \u2014 present when `pmid` is set",
+           "type": "string"
+          },
+          "source": {
+           "const": "unpaywall",
+           "description": "Content fetched from an open-access copy indexed by Unpaywall. Best-effort \u2014 structural fidelity depends on `contentFormat`.",
+           "type": "string"
+          },
+          "sourceUrl": {
+           "description": "URL the content was fetched from",
+           "type": "string"
+          },
+          "title": {
+           "description": "Article title, from the first source that carries one: Unpaywall's record for the DOI, then the Europe PMC record when the chain searched Europe PMC for this id, then \u2014 for `html-markdown` content only \u2014 the title detected on the page. Absent when none of them has a title.",
+           "type": "string"
+          },
+          "totalPages": {
+           "description": "Page count reported by the PDF extractor; absent for HTML",
+           "type": "number"
+          },
+          "version": {
+           "description": "OA version: submittedVersion | acceptedVersion | publishedVersion",
+           "type": "string"
+          },
+          "viaSource": {
+           "const": "unpaywall",
+           "description": "Layer that produced this article. Constant `unpaywall` for this branch.",
+           "type": "string"
+          },
+          "wordCount": {
+           "description": "Approximate word count reported by the HTML extractor; absent for PDFs",
+           "type": "number"
+          },
+          "year": {
+           "description": "Publication year from Unpaywall's record for the DOI. Absent when Unpaywall has none.",
+           "type": "number"
+          }
+         },
+         "required": [
+          "source",
+          "viaSource",
+          "contentFormat",
+          "doi",
+          "sourceUrl",
+          "content"
+         ],
+         "type": "object"
+        }
+       ]
+      },
+      "type": "array"
+     },
+     "deferred": {
+      "additionalProperties": false,
+      "description": "Continuation state for articles the whole-response budget withheld. Present only when `maxResponseCharacters` deferred at least one article.",
+      "properties": {
+       "deferredCount": {
+        "description": "Articles the chain resolved but withheld to stay under the ceiling",
+        "type": "number"
+       },
+       "dois": {
+        "description": "The deferred ids sent as DOIs, in response order \u2014 re-submit them as `dois`. Present only when the deferred ids came from more than one field (so `idType` is absent) and one of them was a DOI.",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "idType": {
+        "description": "The input field every deferred id was sent in \u2014 re-submit them as `pmids`, `pmcids`, or `dois` respectively. Matches the `idType` on `unavailable` entries. Absent when the deferred ids came from more than one field; `pmcids` / `pmids` / `dois` then group them.",
+        "enum": [
+         "pmid",
+         "pmcid",
+         "doi"
+        ],
+        "type": "string"
+       },
+       "ids": {
+        "description": "Identifiers of the deferred articles, in response order, keyed as they were requested (PMC IDs in `PMC<digits>` form). Re-call `pubmed_fetch_fulltext` with these under the `idType` field \u2014 or, when `idType` is absent, with the `pmcids` / `pmids` / `dois` lists below \u2014 and the same other inputs. Never contains an id from `unavailable`.",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "maxResponseCharacters": {
+        "description": "The `maxResponseCharacters` ceiling this response was budgeted against",
+        "type": "number"
+       },
+       "nextDeferredCharacters": {
+        "description": "Serialized size of the next deferred article \u2014 the first entry in `ids`, where the response stopped. Raise `maxResponseCharacters` to at least this to make progress; a smaller article further down `ids` cannot be reached until this one fits.",
+        "type": "number"
+       },
+       "pmcids": {
+        "description": "The deferred ids sent as PMC IDs, in response order \u2014 re-submit them as `pmcids`. Present only when the deferred ids came from more than one field (so `idType` is absent) and one of them was a PMC ID.",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "pmids": {
+        "description": "The deferred ids sent as PMIDs, in response order \u2014 re-submit them as `pmids`. Present only when the deferred ids came from more than one field (so `idType` is absent) and one of them was a PMID.",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "returnedCharacters": {
+        "description": "Serialized characters the returned article records account for",
+        "type": "number"
+       }
+      },
+      "required": [
+       "maxResponseCharacters",
+       "returnedCharacters",
+       "deferredCount",
+       "ids",
+       "nextDeferredCharacters"
+      ],
+      "type": "object"
+     },
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `queue_full`: The local NCBI request queue shed the call \u2014 the queue is full, or the call cannot start before its total deadline (for example behind the cooldown that follows an NCBI 429). `ncbi_unreachable`: NCBI E-utilities failed on every attempt the retry budget allowed \u2014 retries ran out, or the next backoff would overrun the total deadline. `ncbi_rate_limited`: NCBI answered HTTP 429 (too many requests) and the call stopped on it \u2014 retries ran out, the next backoff would overrun the total deadline, or the Retry-After NCBI named outlasts the time left or the 30-second backoff cap. `ncbi_deadline_exceeded`: The total NCBI request deadline expired before NCBI answered successfully \u2014 mid-request, while queued, or during a retry backoff. `ncbi_invalid_response`: NCBI returned a body that could not be parsed (invalid XML/JSON). `ncbi_resource_not_found`: NCBI returned a structured \"not found\" error for the requested ID(s). `blank_filter`: A `sections` element holds no visible character \u2014 only whitespace, or invisible characters such as a zero-width space \u2014 so it names no heading. An exactly-empty element is not blank here; it is skipped. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "queue_full",
+           "ncbi_unreachable",
+           "ncbi_rate_limited",
+           "ncbi_deadline_exceeded",
+           "ncbi_invalid_response",
+           "ncbi_resource_not_found",
+           "blank_filter"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "notice": {
+      "description": "Optional guidance for a partial or empty body. A `sections`-filter miss names the requested terms and affected article id(s) and suggests retrying without `sections` or using broader headings. A metadata-only record names the id(s) the chain could retrieve as front matter only and points at `pubmed_fetch_articles` for the abstract. A table returned with no cell values names the affected table(s), the article each came from, and why the cells cannot be recovered. A budgeted response names the characters returned versus carried and points at `truncation`. A response-wide budget that deferred articles names the ids to re-request. Absent when none of those applies.",
+      "type": "string"
+     },
+     "totalReturned": {
+      "description": "Number of articles in this response. Under a `maxResponseCharacters` budget this counts the kept articles only; `deferred.deferredCount` covers the rest.",
+      "type": "number"
+     },
+     "truncated": {
+      "description": "True when a character budget shortened at least one returned body, or withheld a whole article. Absent when every resolved article is present with its full post-filter body. The per-article body accounting is in `truncation`; the withheld ids are in `deferred`.",
+      "type": "boolean"
+     },
+     "truncation": {
+      "additionalProperties": false,
+      "description": "Character accounting for full text the budget shortened. Present only when a budget actually removed characters \u2014 its absence means every returned article carries its full post-filter body.",
+      "properties": {
+       "articles": {
+        "description": "Per-article accounting, covering only the articles the budget shortened",
+        "items": {
+         "additionalProperties": false,
+         "description": "Character accounting for one article the budget shortened",
+         "properties": {
+          "id": {
+           "description": "Identifier for the article \u2014 PMCID, PMID, DOI, or Europe PMC id, whichever the article carries first",
+           "type": "string"
+          },
+          "omittedAssetNames": {
+           "description": "The dropped assets by name, in document order \u2014 each asset's label, else its `id`, else `asset <n>` for its position in the article. Contiguous for the same reason `omittedTableNames` is: admission stops at the first asset that did not fit rather than skipping ahead to a smaller one. Absent when none were dropped.",
+           "items": {
+            "type": "string"
+           },
+           "type": "array"
+          },
+          "omittedAssets": {
+           "description": "Figures and supplementary items this article dropped whole because the budget left no room once sections and tables were served. An asset is never returned with a truncated caption, so it is either returned complete or counted here. Absent when none were dropped.",
+           "type": "number"
+          },
+          "omittedTableNames": {
+           "description": "The dropped tables by name, in document order \u2014 each table's label, else its `id`, else `table <n>` for its position in the article. Names the tables a bare count only hints at, the way `deferred.ids` names deferred articles. Every table from the first that did not fit onward is here: admission stops at that table rather than skipping ahead to a smaller one, so these are contiguous. Absent when none were dropped.",
+           "items": {
+            "type": "string"
+           },
+           "type": "array"
+          },
+          "omittedTables": {
+           "description": "Tables this article dropped whole because the budget left no room for them. A table is never cut mid-row, so it is either returned complete or counted here. Absent when none were dropped.",
+           "type": "number"
+          },
+          "originalCharacters": {
+           "description": "Body characters this article carried before the budget pass",
+           "type": "number"
+          },
+          "returnedCharacters": {
+           "description": "Body characters this article carries in the response",
+           "type": "number"
+          },
+          "sections": {
+           "description": "Per-section accounting for `source: pmc` articles, in document order, including sections dropped for budget; a shortened section lists its subsections. Absent for `source: unpaywall`, whose body has no section structure.",
+           "items": {
+            "additionalProperties": false,
+            "description": "Character accounting for one body section of a budgeted article",
+            "properties": {
+             "label": {
+              "description": "Section label as printed (e.g. `2`), when the section carries one",
+              "type": "string"
+             },
+             "originalCharacters": {
+              "description": "Body characters this section carried before the budget pass",
+              "type": "number"
+             },
+             "returnedCharacters": {
+              "description": "Body characters this section carries in the response. Zero means the section was dropped in `truncate` mode, or kept as a heading-only entry in `outline` mode, marked as such in the rendered text.",
+              "type": "number"
+             },
+             "subsections": {
+              "description": "Per-subsection accounting for a shortened section, in document order, including subsections dropped for budget \u2014 where inside the section the cut landed. Absent when the section was returned whole or carries no subsections.",
+              "items": {
+               "additionalProperties": false,
+               "description": "Character accounting for one subsection of a shortened section",
+               "properties": {
+                "label": {
+                 "description": "Subsection label as printed (e.g. `2.1`), when the subsection carries one",
+                 "type": "string"
+                },
+                "originalCharacters": {
+                 "description": "Body characters this subsection carried before the budget pass",
+                 "type": "number"
+                },
+                "returnedCharacters": {
+                 "description": "Body characters this subsection carries in the response. Zero means it was dropped in `truncate` mode and counted in `omittedSections`, or kept as a heading-only entry in `outline` mode, marked as such in the rendered text.",
+                 "type": "number"
+                },
+                "title": {
+                 "description": "Subsection heading, when the subsection carries one",
+                 "type": "string"
+                },
+                "truncated": {
+                 "description": "True when the subsection returned fewer characters than it originally carried",
+                 "type": "boolean"
+                }
+               },
+               "required": [
+                "originalCharacters",
+                "returnedCharacters",
+                "truncated"
+               ],
+               "type": "object"
+              },
+              "type": "array"
+             },
+             "title": {
+              "description": "Section heading, when the section carries one",
+              "type": "string"
+             },
+             "truncated": {
+              "description": "True when the section returned fewer characters than it originally carried",
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "originalCharacters",
+             "returnedCharacters",
+             "truncated"
+            ],
+            "type": "object"
+           },
+           "type": "array"
+          },
+          "source": {
+           "description": "Which output shape was budgeted: `pmc` budgets body sections and subsections, `unpaywall` budgets the single `content` body",
+           "enum": [
+            "pmc",
+            "unpaywall"
+           ],
+           "type": "string"
+          }
+         },
+         "required": [
+          "id",
+          "source",
+          "originalCharacters",
+          "returnedCharacters"
+         ],
+         "type": "object"
+        },
+        "type": "array"
+       },
+       "maxCharacters": {
+        "description": "The `maxCharacters` budget applied, when set",
+        "type": "number"
+       },
+       "maxCharactersPerSection": {
+        "description": "The `maxCharactersPerSection` budget applied, when set",
+        "type": "number"
+       },
+       "mode": {
+        "description": "The `overflowMode` that produced these results",
+        "enum": [
+         "truncate",
+         "outline"
+        ],
+        "type": "string"
+       },
+       "omittedAssets": {
+        "description": "Figures and supplementary items dropped whole across every budgeted article, because the budget left no room once body sections and tables were served. Absent when none were dropped. Re-request the affected articles with a higher `maxCharacters`, or with `sections` narrowed, to receive them.",
+        "type": "number"
+       },
+       "omittedSections": {
+        "description": "Body sections and subsections dropped entirely because an article budget was exhausted before reaching them. A dropped section counts once, together with its subsections. Always 0 in `outline` mode, which keeps every heading.",
+        "type": "number"
+       },
+       "omittedTables": {
+        "description": "Tables dropped whole across every budgeted article, because the budget left no room once body sections were served. Absent when none were dropped. Re-request the affected articles with a higher `maxCharacters`, or with `sections` narrowed, to receive them.",
+        "type": "number"
+       },
+       "originalCharacters": {
+        "description": "Body characters the shortened articles carried before the budget pass",
+        "type": "number"
+       },
+       "returnedCharacters": {
+        "description": "Body characters the shortened articles carry in this response",
+        "type": "number"
+       }
+      },
+      "required": [
+       "mode",
+       "originalCharacters",
+       "returnedCharacters",
+       "omittedSections",
+       "articles"
+      ],
+      "type": "object"
+     },
+     "unavailable": {
+      "description": "Per-identifier explanations for any requested PMIDs, PMCIDs, or DOIs with no returnable full text. `idType` names the field each id was sent in. Distinct from `deferred`: nothing here is retrievable by re-calling, and an id never appears in both.",
+      "items": {
+       "additionalProperties": false,
+       "description": "One identifier that could not be returned, with the full chain it traversed",
+       "properties": {
+        "id": {
+         "description": "Identifier the chain could not resolve \u2014 PMID, PMCID, or DOI per `idType`",
+         "type": "string"
+        },
+        "idType": {
+         "description": "Which input field the id was sent in \u2014 `pmids`, `pmcids`, or `dois` respectively",
+         "enum": [
+          "pmid",
+          "pmcid",
+          "doi"
+         ],
+         "type": "string"
+        },
+        "reason": {
+         "description": "Why no full text was returned \u2014 the most specific signal any tier that answered reported. not-found: upstream returned no record for this ID. no-pmc-fallback-disabled: every tier was skipped (`triedTiers` is all `not-attempted`) \u2014 typically because EPMC (`EUROPEPMC_ENABLED`) and Unpaywall (`UNPAYWALL_EMAIL`) are not configured. no-epmc-fulltext: EPMC indexed the record but publishes no fullTextXML. no-body: the record was retrieved but carries front matter and abstract only, with no body sections \u2014 use `pubmed_fetch_articles` for the metadata. no-doi: the DOI lookup ran and this record has none, so Unpaywall could not be queried. doi-lookup-failed: the DOI lookup itself errored, so whether a DOI exists is unknown and Unpaywall was never reached \u2014 retry the request; unlike no-doi this is a transient failure, not a settled answer. no-oa: Unpaywall has no OA copy. fetch-failed: download failed. parse-failed: extraction empty. service-error: upstream server failure (threw, timed out, or returned malformed data). A reason never means the chain ran to completion \u2014 read `unqueriedTiers` for that.",
+         "enum": [
+          "not-found",
+          "no-pmc-fallback-disabled",
+          "no-epmc-fulltext",
+          "no-body",
+          "no-doi",
+          "doi-lookup-failed",
+          "no-oa",
+          "fetch-failed",
+          "parse-failed",
+          "service-error"
+         ],
+         "type": "string"
+        },
+        "triedTiers": {
+         "description": "Per-tier outcomes the chain produced for this id, in execution order. Covers `pmc`, `europepmc`, and `unpaywall` \u2014 the same tiers the tool description references. Tiers that the chain skipped appear as `outcome: not-attempted` with a `detail` explaining why.",
+         "items": {
+          "additionalProperties": false,
+          "description": "One tier the resolution chain attempted, with its outcome",
+          "properties": {
+           "detail": {
+            "description": "Tier-specific context when available",
+            "type": "string"
+           },
+           "outcome": {
+            "description": "Per-tier outcome. not-attempted: tier was skipped. miss: tier returned no record. no-fulltext: EPMC indexed the record but publishes no fullTextXML. no-body: the tier returned a record with front matter and abstract but no body sections, so the chain continued. no-doi: the DOI lookup ran and this record has none, so Unpaywall could not be queried. doi-lookup-failed: the DOI lookup itself errored, so whether a DOI exists is unknown and Unpaywall was never reached \u2014 retry the request. no-oa: Unpaywall reports no open-access copy. fetch-failed: OA copy download failed. parse-failed: extraction produced empty content. service-error: tier service threw.",
+            "enum": [
+             "not-attempted",
+             "miss",
+             "no-fulltext",
+             "no-body",
+             "no-doi",
+             "doi-lookup-failed",
+             "no-oa",
+             "fetch-failed",
+             "parse-failed",
+             "service-error"
+            ],
+            "type": "string"
+           },
+           "tier": {
+            "description": "Which tier in the resolution chain",
+            "enum": [
+             "pmc",
+             "europepmc",
+             "unpaywall"
+            ],
+            "type": "string"
+           }
+          },
+          "required": [
+           "tier",
+           "outcome"
+          ],
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "unqueriedTiers": {
+         "description": "Tiers the chain skipped because this deployment has not configured them, and that could have served this id \u2014 the search was incomplete, and a deployment with these tiers configured may still resolve the id. `triedTiers` carries which environment variable each one is waiting on. Absent when every tier that could have served the id was actually queried; a tier skipped because it was inapplicable to this id (no DOI for Unpaywall) is never listed.",
+         "items": {
+          "description": "A fallback tier this deployment has not configured",
+          "enum": [
+           "europepmc",
+           "unpaywall"
+          ],
+          "type": "string"
+         },
+         "type": "array"
+        }
+       },
+       "required": [
+        "id",
+        "idType",
+        "reason",
+        "triedTiers"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "format": {
+      "anyOf": [
+       {
+        "description": "Single citation style. One of: apa, mla, bibtex, ris, vancouver.",
+        "enum": [
+         "apa",
+         "mla",
+         "bibtex",
+         "ris",
+         "vancouver"
+        ],
+        "type": "string"
+       },
+       {
+        "description": "Multiple citation styles to generate. Each entry: apa, mla, bibtex, ris, or vancouver.",
+        "items": {
+         "enum": [
+          "apa",
+          "mla",
+          "bibtex",
+          "ris",
+          "vancouver"
+         ],
+         "type": "string"
+        },
+        "minItems": 1,
+        "type": "array"
+       }
+      ],
+      "default": "apa",
+      "description": "Citation format(s) to generate \u2014 single style as a string or multiple as an array. Allowed values: apa, mla, bibtex, ris, vancouver."
+     },
+     "pmids": {
+      "description": "PubMed IDs to cite",
+      "items": {
+       "pattern": "^\\d+$",
+       "type": "string"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "type": "array"
+     }
+    },
+    "required": [
+     "pmids"
+    ],
+    "type": "object"
+   },
+   "name": "pubmed_format_citations",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "citations",
+       "totalSubmitted",
+       "totalFormatted"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "citations": {
+      "description": "Citations per article",
+      "items": {
+       "additionalProperties": false,
+       "description": "Citations for a single article",
+       "properties": {
+        "citations": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "description": "Citations keyed by style",
+         "propertyNames": {
+          "type": "string"
+         },
+         "type": "object"
+        },
+        "pmid": {
+         "description": "PubMed ID",
+         "type": "string"
+        },
+        "title": {
+         "description": "Article title",
+         "type": "string"
+        }
+       },
+       "required": [
+        "pmid",
+        "citations"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `queue_full`: The local NCBI request queue shed the call \u2014 the queue is full, or the call cannot start before its total deadline (for example behind the cooldown that follows an NCBI 429). `ncbi_unreachable`: NCBI E-utilities failed on every attempt the retry budget allowed \u2014 retries ran out, or the next backoff would overrun the total deadline. `ncbi_rate_limited`: NCBI answered HTTP 429 (too many requests) and the call stopped on it \u2014 retries ran out, the next backoff would overrun the total deadline, or the Retry-After NCBI named outlasts the time left or the 30-second backoff cap. `ncbi_deadline_exceeded`: The total NCBI request deadline expired before NCBI answered successfully \u2014 mid-request, while queued, or during a retry backoff. `ncbi_invalid_response`: NCBI returned a body that could not be parsed (invalid XML/JSON). `ncbi_resource_not_found`: NCBI returned a structured \"not found\" error for the requested ID(s). Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "queue_full",
+           "ncbi_unreachable",
+           "ncbi_rate_limited",
+           "ncbi_deadline_exceeded",
+           "ncbi_invalid_response",
+           "ncbi_resource_not_found"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "notice": {
+      "description": "Optional guidance when no citations were produced \u2014 points to discovery tools. Absent when at least one citation was produced.",
+      "type": "string"
+     },
+     "totalFormatted": {
+      "description": "Number of PMIDs successfully formatted",
+      "type": "number"
+     },
+     "totalSubmitted": {
+      "description": "Number of PMIDs submitted for citation formatting",
+      "type": "number"
+     },
+     "unavailablePmids": {
+      "description": "PMIDs PubMed returned no record for, so nothing could be cited for them. That is all this reports: PubMed omits a PMID it does not recognize silently, with no error and no reason, so the absence says nothing about whether the PMID exists. Use `pubmed_search_articles` to find PMIDs that do resolve.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "maxResults": {
+      "default": 10,
+      "description": "Maximum related articles",
+      "maximum": 50,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "offset": {
+      "default": 0,
+      "description": "Result offset for pagination (0-based); page through results by incrementing by maxResults",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "pmid": {
+      "description": "Source PubMed ID",
+      "pattern": "^\\d+$",
+      "type": "string"
+     },
+     "relationship": {
+      "default": "similar",
+      "description": "Relationship type: similar (content-based), cited_by (articles citing this one), references (articles this one cites)",
+      "enum": [
+       "similar",
+       "cited_by",
+       "references"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "pmid"
+    ],
+    "type": "object"
+   },
+   "name": "pubmed_find_related",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "sourcePmid",
+       "relationship",
+       "offset",
+       "articles",
+       "totalCount",
+       "source"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "articles": {
+      "description": "Related articles",
+      "items": {
+       "additionalProperties": false,
+       "description": "Related article with enriched summary",
+       "properties": {
+        "authors": {
+         "description": "Author string \u2014 the first three of the record's own authors, then \"et al.\". On an NCBI Bookshelf chapter these are the chapter's authors; the book's editors are in `editors`.",
+         "type": "string"
+        },
+        "bookTitle": {
+         "description": "Title of the book an NCBI Bookshelf record belongs to. Present instead of `source` on a book record; absent on a journal article.",
+         "type": "string"
+        },
+        "docType": {
+         "description": "What PubMed classifies this record as: \"chapter\" or \"book\" for an NCBI Bookshelf record, \"citation\" for an ordinary journal article. Absent when PubMed supplies none.",
+         "type": "string"
+        },
+        "editors": {
+         "description": "Editors of the containing book, kept out of `authors` so they cannot displace the record's own authors. Absent on a journal article and on a book that credits no editors.",
+         "items": {
+          "description": "One editor, \"Surname Initials\" as ESummary renders it",
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "pmid": {
+         "description": "PubMed ID",
+         "type": "string"
+        },
+        "pubDate": {
+         "description": "Publication date as YYYY-MM-DD; a month- or year-only date reads as the first day of that month or year. On an NCBI Bookshelf chapter (`docType` \"chapter\") it is the chapter's own date \u2014 its last revision, otherwise its contribution \u2014 not the year its book began.",
+         "type": "string"
+        },
+        "publisherName": {
+         "description": "Publisher of the book an NCBI Bookshelf record belongs to. Present only on a book record; absent on a journal article.",
+         "type": "string"
+        },
+        "source": {
+         "description": "Journal the article appeared in. Absent on an NCBI Bookshelf record, which has no journal \u2014 its venue is in `bookTitle` and `publisherName` instead, and `docType` says which kind of record it is.",
+         "type": "string"
+        },
+        "title": {
+         "description": "Article title",
+         "type": "string"
+        }
+       },
+       "required": [
+        "pmid"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "coverageFailures": {
+      "description": "Reference-coverage fallbacks that failed instead of answering, so the reference set is unverified rather than confirmed absent. Absent when every provider consulted answered.",
+      "items": {
+       "additionalProperties": false,
+       "description": "One coverage provider that could not be checked",
+       "properties": {
+        "provider": {
+         "description": "Reference-coverage provider that failed",
+         "enum": [
+          "europepmc",
+          "openalex"
+         ],
+         "type": "string"
+        },
+        "reason": {
+         "description": "Declared failure reason, e.g. europepmc_unreachable or provider_disabled",
+         "type": "string"
+        },
+        "retryable": {
+         "description": "Whether a retry can reach this provider",
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "provider",
+        "reason",
+        "retryable"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `all_providers_failed`: Every provider eligible for the requested relationship failed; none answered. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "all_providers_failed"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "notice": {
+      "description": "Guidance when results are empty, a fallback provider answered, offset overshot, a fallback provider could not be reached, or upstream rows were excluded for carrying no PubMed PMID. Absent on a clean NCBI result page.",
+      "type": "string"
+     },
+     "offset": {
+      "description": "Result offset used",
+      "type": "number"
+     },
+     "relationship": {
+      "description": "Relationship type used",
+      "enum": [
+       "similar",
+       "cited_by",
+       "references"
+      ],
+      "type": "string"
+     },
+     "source": {
+      "description": "Provider that answered this request",
+      "enum": [
+       "ncbi",
+       "europepmc",
+       "openalex"
+      ],
+      "type": "string"
+     },
+     "sourcePmid": {
+      "description": "Source PubMed ID",
+      "type": "string"
+     },
+     "totalCount": {
+      "description": "Total related articles found before windowing. A Europe PMC or OpenAlex total may shrink to the PubMed-addressable count once a request window covers the whole upstream set, since rows without a PubMed PMID cannot be returned.",
+      "type": "number"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "query": {
+      "description": "PubMed search query to spell-check. Must carry a term: a value of only whitespace or invisible characters, such as a zero-width space, is rejected rather than sent to ESpell.",
+      "minLength": 2,
+      "type": "string"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object"
+   },
+   "name": "pubmed_spell_check",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "original",
+       "corrected",
+       "hasSuggestion"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "corrected": {
+      "description": "Corrected query (same as original if no suggestion)",
+      "type": "string"
+     },
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `queue_full`: The local NCBI request queue shed the call \u2014 the queue is full, or the call cannot start before its total deadline (for example behind the cooldown that follows an NCBI 429). `ncbi_unreachable`: NCBI E-utilities failed on every attempt the retry budget allowed \u2014 retries ran out, or the next backoff would overrun the total deadline. `ncbi_rate_limited`: NCBI answered HTTP 429 (too many requests) and the call stopped on it \u2014 retries ran out, the next backoff would overrun the total deadline, or the Retry-After NCBI named outlasts the time left or the 30-second backoff cap. `ncbi_deadline_exceeded`: The total NCBI request deadline expired before NCBI answered successfully \u2014 mid-request, while queued, or during a retry backoff. `ncbi_invalid_response`: NCBI returned a body that could not be parsed (invalid XML/JSON). `ncbi_resource_not_found`: NCBI returned a structured \"not found\" error for the requested ID(s). `blank_query`: The query contains no search term: nothing is left once whitespace and invisible characters such as a zero-width space are disregarded. pubmed_search_articles and pubmed_europepmc_search first decode HTML entities and also disregard markup and parentheses, so `()`, `<b></b>`, and `&nbsp;` hold no term there; pubmed_search_articles also disregards bracketed field tags such as `[pdat]`. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "queue_full",
+           "ncbi_unreachable",
+           "ncbi_rate_limited",
+           "ncbi_deadline_exceeded",
+           "ncbi_invalid_response",
+           "ncbi_resource_not_found",
+           "blank_query"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "hasSuggestion": {
+      "description": "Whether NCBI suggested a correction",
+      "type": "boolean"
+     },
+     "original": {
+      "description": "Original query",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "includeDetails": {
+      "default": true,
+      "description": "Fetch full MeSH records (scope notes, tree numbers, entry terms)",
+      "type": "boolean"
+     },
+     "maxResults": {
+      "default": 10,
+      "description": "Maximum results",
+      "maximum": 50,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "offset": {
+      "default": 0,
+      "description": "Result offset for pagination (0-based). Pass the `nextOffset` from the previous response to get the following page; the exact-descriptor match is pinned to the first page only.",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "query": {
+      "description": "MeSH descriptor name or free-text term to look up. Must carry a term: a value of only whitespace or invisible characters, such as a zero-width space, is rejected rather than searched.",
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object"
+   },
+   "name": "pubmed_lookup_mesh",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "query",
+       "offset",
+       "results",
+       "totalCount"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `queue_full`: The local NCBI request queue shed the call \u2014 the queue is full, or the call cannot start before its total deadline (for example behind the cooldown that follows an NCBI 429). `ncbi_unreachable`: NCBI E-utilities failed on every attempt the retry budget allowed \u2014 retries ran out, or the next backoff would overrun the total deadline. `ncbi_rate_limited`: NCBI answered HTTP 429 (too many requests) and the call stopped on it \u2014 retries ran out, the next backoff would overrun the total deadline, or the Retry-After NCBI named outlasts the time left or the 30-second backoff cap. `ncbi_deadline_exceeded`: The total NCBI request deadline expired before NCBI answered successfully \u2014 mid-request, while queued, or during a retry backoff. `ncbi_invalid_response`: NCBI returned a body that could not be parsed (invalid XML/JSON). `ncbi_resource_not_found`: NCBI returned a structured \"not found\" error for the requested ID(s). `blank_query`: The query contains no search term: nothing is left once whitespace and invisible characters such as a zero-width space are disregarded. pubmed_search_articles and pubmed_europepmc_search first decode HTML entities and also disregard markup and parentheses, so `()`, `<b></b>`, and `&nbsp;` hold no term there; pubmed_search_articles also disregards bracketed field tags such as `[pdat]`. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "queue_full",
+           "ncbi_unreachable",
+           "ncbi_rate_limited",
+           "ncbi_deadline_exceeded",
+           "ncbi_invalid_response",
+           "ncbi_resource_not_found",
+           "blank_query"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "nextOffset": {
+      "description": "Offset to request for the next page. Omitted when this is the last page, so its absence is the end-of-results signal.",
+      "type": "number"
+     },
+     "notice": {
+      "description": "Optional guidance when no descriptors matched or the offset overshot the result set \u2014 suggests spell-check, free-text search, or resetting the offset. Absent on successful result pages.",
+      "type": "string"
+     },
+     "offset": {
+      "description": "Result offset this page was read from",
+      "type": "number"
+     },
+     "query": {
+      "description": "Original search query",
+      "type": "string"
+     },
+     "results": {
+      "description": "Matching MeSH records",
+      "items": {
+       "additionalProperties": false,
+       "description": "Matching MeSH descriptor record",
+       "properties": {
+        "entrezUid": {
+         "description": "NCBI Entrez UID for this record \u2014 the join key for E-utilities (eSummary/eFetch db=mesh).",
+         "type": "string"
+        },
+        "entryTerms": {
+         "description": "Synonyms / entry terms",
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "meshId": {
+         "description": "Canonical MeSH DescriptorUI (e.g. \"D003924\") \u2014 resolves at the MeSH Browser and NLM linked data. Falls back to the raw Entrez UID when a record is not decodable.",
+         "type": "string"
+        },
+        "name": {
+         "description": "Descriptor name",
+         "type": "string"
+        },
+        "scopeNote": {
+         "description": "Scope note",
+         "type": "string"
+        },
+        "treeNumbers": {
+         "description": "Navigable MeSH tree numbers (e.g. \"D02.078.370.141.450\"). Omitted for supplementary concept records (SCRs), which map to a heading rather than occupying a tree position.",
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        }
+       },
+       "required": [
+        "meshId",
+        "entrezUid",
+        "name"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "totalCount": {
+      "description": "Total MeSH descriptors matching the query upstream, before the maxResults cap",
+      "type": "number"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "citations": {
+      "description": "Citations to look up, 1\u201325, each matched independently. More fields = better match accuracy.",
+      "items": {
+       "description": "Citation to match against PubMed. Must include at least journal or a four-digit year \u2014 ECitMatch primary-keys on journal+volume+page, so author-only or volume-only inputs guarantee no match.",
+       "properties": {
+        "authorName": {
+         "description": "Author name, typically \"lastname initials\" (e.g., \"mann bj\"). Must contain a visible character, and cannot contain a pipe (\"|\") or a line break.",
+         "pattern": "^[^|\\r\\n]*$",
+         "type": "string"
+        },
+        "firstPage": {
+         "description": "First page number. Must contain a visible character, and cannot contain a pipe (\"|\") or a line break.",
+         "pattern": "^[^|\\r\\n]*$",
+         "type": "string"
+        },
+        "journal": {
+         "description": "Journal title or ISO abbreviation (e.g., \"proc natl acad sci u s a\"). Must contain a visible character, and cannot contain a pipe (\"|\") or a line break.",
+         "pattern": "^[^|\\r\\n]*$",
+         "type": "string"
+        },
+        "key": {
+         "description": "Arbitrary label to track this citation in results. Auto-assigned if omitted. Echoed back unchanged and never sent to NCBI, so any character is accepted here.",
+         "type": "string"
+        },
+        "volume": {
+         "description": "Volume number. Must contain a visible character, and cannot contain a pipe (\"|\") or a line break.",
+         "pattern": "^[^|\\r\\n]*$",
+         "type": "string"
+        },
+        "year": {
+         "description": "Publication year as four digits (e.g., \"1991\").",
+         "pattern": "^[ \\t]*\\d{4}[ \\t]*$",
+         "type": "string"
+        }
+       },
+       "type": "object"
+      },
+      "maxItems": 25,
+      "minItems": 1,
+      "type": "array"
+     }
+    },
+    "required": [
+     "citations"
+    ],
+    "type": "object"
+   },
+   "name": "pubmed_lookup_citation",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "results",
+       "totalMatched",
+       "totalSubmitted",
+       "totalWarnings"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `queue_full`: The local NCBI request queue shed the call \u2014 the queue is full, or the call cannot start before its total deadline (for example behind the cooldown that follows an NCBI 429). `ncbi_unreachable`: NCBI E-utilities failed on every attempt the retry budget allowed \u2014 retries ran out, or the next backoff would overrun the total deadline. `ncbi_rate_limited`: NCBI answered HTTP 429 (too many requests) and the call stopped on it \u2014 retries ran out, the next backoff would overrun the total deadline, or the Retry-After NCBI named outlasts the time left or the 30-second backoff cap. `ncbi_deadline_exceeded`: The total NCBI request deadline expired before NCBI answered successfully \u2014 mid-request, while queued, or during a retry backoff. `ncbi_invalid_response`: NCBI returned a body that could not be parsed (invalid XML/JSON). `ncbi_resource_not_found`: NCBI returned a structured \"not found\" error for the requested ID(s). Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "queue_full",
+           "ncbi_unreachable",
+           "ncbi_rate_limited",
+           "ncbi_deadline_exceeded",
+           "ncbi_invalid_response",
+           "ncbi_resource_not_found"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "results": {
+      "description": "Match results, one per input citation",
+      "items": {
+       "additionalProperties": false,
+       "description": "Per-citation match result",
+       "properties": {
+        "candidatePmids": {
+         "description": "Candidate PMIDs returned when the citation matched ambiguously. Add more bibliographic fields and retry to disambiguate, or fetch each candidate via pubmed_fetch_articles to pick the intended one.",
+         "items": {
+          "description": "PMID",
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "detail": {
+         "description": "Additional detail returned by ECitMatch for non-exact matches",
+         "type": "string"
+        },
+        "key": {
+         "description": "Citation tracking key",
+         "type": "string"
+        },
+        "matched": {
+         "description": "Whether a PMID was found",
+         "type": "boolean"
+        },
+        "matchedFirstAuthor": {
+         "description": "First author of the matched article (e.g., \"Husain M\"). Useful eyeball signal for verifying a match.",
+         "type": "string"
+        },
+        "pmid": {
+         "description": "Matched PubMed ID",
+         "type": "string"
+        },
+        "status": {
+         "description": "Lookup outcome classification for this citation",
+         "enum": [
+          "matched",
+          "not_found",
+          "ambiguous"
+         ],
+         "type": "string"
+        },
+        "warnings": {
+         "description": "Non-fatal warnings about this match. A PMID may be returned even when the queried author or year disagrees with the matched article \u2014 verify before treating the PMID as authoritative.",
+         "items": {
+          "additionalProperties": false,
+          "description": "Non-fatal warning about the match",
+          "properties": {
+           "code": {
+            "description": "Machine-readable warning code",
+            "enum": [
+             "author_mismatch",
+             "year_mismatch"
+            ],
+            "type": "string"
+           },
+           "message": {
+            "description": "Human-readable description of the warning",
+            "type": "string"
+           }
+          },
+          "required": [
+           "code",
+           "message"
+          ],
+          "type": "object"
+         },
+         "type": "array"
+        }
+       },
+       "required": [
+        "key",
+        "matched",
+        "status"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "totalMatched": {
+      "description": "Number of citations with PMID matches",
+      "type": "number"
+     },
+     "totalSubmitted": {
+      "description": "Number of citations submitted",
+      "type": "number"
+     },
+     "totalWarnings": {
+      "description": "Number of matched citations that carry at least one warning",
+      "type": "number"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "idType": {
+      "description": "The type of IDs being submitted. Required so the API can unambiguously resolve them.",
+      "enum": [
+       "pmcid",
+       "pmid",
+       "doi"
+      ],
+      "type": "string"
+     },
+     "ids": {
+      "description": "Article identifiers to convert \u2014 one identifier per element, all of the same type. Each element is checked against `idType` before the request: `doi` starts with \"10.\" and carries a \"/\" (\"10.1093/nar/gks1195\"); `pmid` is digits (\"23193287\"); `pmcid` is digits with an optional \"PMC\" prefix (\"PMC3531190\" or \"3531190\"). No element may contain a comma or whitespace \u2014 a packed value like \"23193287,37952131\" is rejected, so split it across elements.",
+      "items": {
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "type": "array"
+     }
+    },
+    "required": [
+     "ids",
+     "idType"
+    ],
+    "type": "object"
+   },
+   "name": "pubmed_convert_ids",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "records",
+       "totalConverted",
+       "totalSubmitted"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `queue_full`: The local NCBI request queue shed the call \u2014 the queue is full, or the call cannot start before its total deadline (for example behind the cooldown that follows an NCBI 429). `ncbi_unreachable`: NCBI E-utilities failed on every attempt the retry budget allowed \u2014 retries ran out, or the next backoff would overrun the total deadline. `ncbi_rate_limited`: NCBI answered HTTP 429 (too many requests) and the call stopped on it \u2014 retries ran out, the next backoff would overrun the total deadline, or the Retry-After NCBI named outlasts the time left or the 30-second backoff cap. `ncbi_deadline_exceeded`: The total NCBI request deadline expired before NCBI answered successfully \u2014 mid-request, while queued, or during a retry backoff. `ncbi_invalid_response`: NCBI returned a body that could not be parsed (invalid XML/JSON). `ncbi_resource_not_found`: NCBI returned a structured \"not found\" error for the requested ID(s). `malformed_id`: An `ids` element does not match the declared `idType` \u2014 most often several identifiers packed into one element, which the comma-delimited upstream batch would split into extra records. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "queue_full",
+           "ncbi_unreachable",
+           "ncbi_rate_limited",
+           "ncbi_deadline_exceeded",
+           "ncbi_invalid_response",
+           "ncbi_resource_not_found",
+           "malformed_id"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "records": {
+      "description": "Conversion results, one per input ID",
+      "items": {
+       "additionalProperties": false,
+       "description": "Per-ID conversion record",
+       "properties": {
+        "doi": {
+         "description": "Digital Object Identifier, cased as the PMC ID Converter reports it; absent if no DOI is on record. DOIs are case-insensitive by spec and no case normalization is applied here, so casing can differ from a Europe PMC-sourced `doi` \u2014 compare the two case-insensitively.",
+         "type": "string"
+        },
+        "errmsg": {
+         "description": "Error message if conversion failed. Presence of `errmsg` is the failure signal; absence means the conversion succeeded.",
+         "type": "string"
+        },
+        "pmcid": {
+         "description": "PubMed Central ID; absent if the article has no PMC copy",
+         "type": "string"
+        },
+        "pmid": {
+         "description": "PubMed ID; absent if no mapping was found",
+         "type": "string"
+        },
+        "requestedId": {
+         "description": "The ID that was submitted",
+         "type": "string"
+        }
+       },
+       "required": [
+        "requestedId"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "totalConverted": {
+      "description": "Number of IDs successfully converted",
+      "type": "number"
+     },
+     "totalSubmitted": {
+      "description": "Number of IDs submitted",
+      "type": "number"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "cursorMark": {
+      "default": "*",
+      "description": "Pagination cursor. Use `*` (default) for the first page; pass the previous response's `nextCursorMark` verbatim for subsequent pages. A whitespace-only cursor, invisible characters included, is rejected before the request, and a cursor Europe PMC cannot read fails with `europepmc_invalid_input` once a retry of it fails again while the first page of the same query is served.",
+      "type": "string"
+     },
+     "pageSize": {
+      "default": 25,
+      "description": "Results per page. Max 100 per EPMC API.",
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "query": {
+      "description": "Europe PMC search query. Supports field tokens like `AUTH:\"<name>\"`, `JOURNAL:\"<title>\"`, `TITLE:\"<words>\"`, `PUB_YEAR:[2020 TO 2024]`, `DOI:\"...\"`, `EXT_ID:<pmid> AND SRC:MED`, `PMCID:PMC<digits>`. Identifier tokens may be quoted or unquoted \u2014 this tool wraps every query with its `sources` filter, and Europe PMC honors a quoted identifier inside that wrapper. A PubMed-indexed article resolves under `SRC:MED`, not `SRC:PMC`, whichever identifier is used. Free text is matched broadly across abstract/title/keywords. A query with no search term \u2014 blank once HTML entities are decoded and markup, parentheses, and invisible characters are disregarded, such as `()` or `<b></b>` \u2014 is rejected; any other query is sent as written.",
+      "minLength": 1,
+      "type": "string"
+     },
+     "resultType": {
+      "default": "core",
+      "description": "`core` returns abstract, IDs, dates, license; `lite` is a smaller payload with IDs and titles only.",
+      "enum": [
+       "core",
+       "lite"
+      ],
+      "type": "string"
+     },
+     "sort": {
+      "description": "Optional EPMC sort: `<field> asc|desc`, or several comma-separated keys applied in order (`PUB_YEAR desc, CITED desc`). Documented sortable fields: `P_PDATE_D` (publication date), `CITED` (citation count), `AUTH_FIRST` (first author surname), `PUB_YEAR` (publication year). Examples: `P_PDATE_D desc` (newest first), `CITED desc` (most cited). Omit for relevance ranking. Field and direction match case-insensitively. A field outside the documented set may be honored, silently ignored, or rejected, and a sort using one \u2014 or a key without `asc`/`desc` \u2014 can fail with `europepmc_invalid_input` naming it, even when Europe PMC honors the field. Note: `P_PDATE_D` is ignored for preprint-only (`sources: [\"PPR\"]`) result sets \u2014 preprints have no populated publication date, so use `PUB_YEAR` to order preprints by date.",
+      "type": "string"
+     },
+     "sources": {
+      "description": "Filter to specific EPMC sources. Defaults to MED, PMC, PPR when omitted. Pass an explicit array including PAT or AGR to broaden coverage. Allowed values: MED, PMC, PPR, PAT, AGR.",
+      "items": {
+       "enum": [
+        "MED",
+        "PMC",
+        "PPR",
+        "PAT",
+        "AGR"
+       ],
+       "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object"
+   },
+   "name": "pubmed_europepmc_search",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "hits",
+       "cursorMark",
+       "searchUrl",
+       "totalCount",
+       "query",
+       "appliedSources"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "appliedSources": {
+      "description": "Sources the query was filtered against (defaults applied)",
+      "items": {
+       "enum": [
+        "MED",
+        "PMC",
+        "PPR",
+        "PAT",
+        "AGR"
+       ],
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "cursorMark": {
+      "description": "Cursor used for this response (echoed from the request)",
+      "type": "string"
+     },
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `europepmc_unreachable`: Europe PMC failed on every retry attempt \u2014 unreachable, an HTTP 404 or 5xx other than a 504 timeout from its search endpoint, or an empty response with no results. `europepmc_invalid_response`: Europe PMC returned a body that could not be parsed (invalid JSON or XML). `europepmc_invalid_input`: Europe PMC rejected the request input \u2014 an error message in place of results, an empty response to a sort with an undocumented field or no asc/desc direction, or a pagination cursor it cannot read (an empty response on the last attempt the retry budget allows, or a second HTTP 503 when the first page of the same query is served). `blank_query`: The query contains no search term: nothing is left once whitespace and invisible characters such as a zero-width space are disregarded. pubmed_search_articles and pubmed_europepmc_search first decode HTML entities and also disregard markup and parentheses, so `()`, `<b></b>`, and `&nbsp;` hold no term there; pubmed_search_articles also disregards bracketed field tags such as `[pdat]`. `blank_cursor`: The `cursorMark` holds only whitespace or invisible characters such as a zero-width space. Europe PMC cannot read it and answers with the HTTP 503 it also uses for an outage. `europepmc_disabled`: Europe PMC service is disabled via EUROPEPMC_ENABLED=false. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "europepmc_unreachable",
+           "europepmc_invalid_response",
+           "europepmc_invalid_input",
+           "blank_query",
+           "blank_cursor",
+           "europepmc_disabled"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "hits": {
+      "description": "Matching Europe PMC records, in the order EPMC returned them",
+      "items": {
+       "additionalProperties": false,
+       "description": "Single Europe PMC record returned by the search",
+       "properties": {
+        "abstractSnippet": {
+         "description": "First 400 characters of the abstract as display-ready plain text \u2014 JATS/HTML markup stripped and HTML entities decoded \u2014 when `resultType: \"core\"` is requested, with a trailing \u2026 appended when the abstract was cut. Check `abstractTruncated` before treating it as the whole abstract.",
+         "type": "string"
+        },
+        "abstractTruncated": {
+         "description": "Whether `abstractSnippet` was cut short of the full abstract. Retrieve the complete text with `pubmed_europepmc_fetch` using this record\u2019s `source` and `epmcId`. Present whenever `abstractSnippet` is; omitted when Europe PMC carries no abstract.",
+         "type": "boolean"
+        },
+        "authors": {
+         "description": "Formatted author string as display-ready plain text \u2014 JATS/HTML markup stripped and HTML entities decoded.",
+         "type": "string"
+        },
+        "citedByCount": {
+         "description": "Citation count reported by Europe PMC",
+         "type": "number"
+        },
+        "doi": {
+         "description": "DOI when present, cased as Europe PMC reports it. DOIs are case-insensitive by spec and no case normalization is applied here, so the same DOI can arrive in a different case from `pubmed_fetch_articles` (Europe PMC `10.1056/nejmoa2212948`, NCBI `10.1056/NEJMoa2212948`) \u2014 a byte-for-byte comparison across the two reports a false mismatch.",
+         "type": "string"
+        },
+        "epmcId": {
+         "description": "Europe PMC's internal record id. Pass it with this hit's `source` to `pubmed_europepmc_fetch` for the complete record. Europe PMC's `fullTextXML` is keyed on `pmcId`, not on this id, so records without a PMC counterpart have no full text to fetch.",
+         "type": "string"
+        },
+        "epmcUrl": {
+         "description": "Europe PMC article URL",
+         "type": "string"
+        },
+        "firstPublicationDate": {
+         "description": "First publication date (ISO YYYY-MM-DD)",
+         "type": "string"
+        },
+        "hasFullTextXml": {
+         "description": "Whether Europe PMC publishes a fullTextXML for this record. Derived from `inPMC` \u2014 only records with a PMC counterpart have JATS via EPMC; preprints (`PPR`) and MED-only records return false.",
+         "type": "boolean"
+        },
+        "isOpenAccess": {
+         "description": "Whether EPMC reports the record as open access",
+         "type": "boolean"
+        },
+        "journal": {
+         "description": "Journal title as display-ready plain text \u2014 JATS/HTML markup stripped and HTML entities decoded.",
+         "type": "string"
+        },
+        "pmcId": {
+         "description": "PMC ID when present in PMC",
+         "type": "string"
+        },
+        "pmid": {
+         "description": "PMID when present in PubMed",
+         "type": "string"
+        },
+        "pubYear": {
+         "description": "Publication year",
+         "type": "string"
+        },
+        "source": {
+         "description": "Europe PMC source \u2014 `MED` (PubMed), `PMC` (PubMed Central), `PPR` (preprint), `PAT` (patent), `AGR` (Agricola)",
+         "enum": [
+          "MED",
+          "PMC",
+          "PPR",
+          "PAT",
+          "AGR"
+         ],
+         "type": "string"
+        },
+        "title": {
+         "description": "Article title as display-ready plain text \u2014 JATS/HTML markup stripped and HTML entities decoded.",
+         "type": "string"
+        }
+       },
+       "required": [
+        "source",
+        "epmcId",
+        "epmcUrl"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "nextCursorMark": {
+      "description": "Cursor to pass back as `cursorMark` for the next page. Absent on the final page.",
+      "type": "string"
+     },
+     "notice": {
+      "description": "Optional guidance when results are empty or paging overshot",
+      "type": "string"
+     },
+     "query": {
+      "description": "Effective query string echoed by Europe PMC",
+      "type": "string"
+     },
+     "searchUrl": {
+      "description": "Europe PMC's website search URL for this query",
+      "type": "string"
+     },
+     "totalCount": {
+      "description": "Total matching records across all pages",
+      "type": "number"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "maxResponseCharacters": {
+      "description": "Opt-in ceiling for the whole response, in characters. Each record is measured as the JSON record it is returned as \u2014 title, authors, journal, abstract, identifiers, every field it carries. Records are kept in the order Europe PMC returned them until the next one would cross the ceiling; that record and the rest are deferred whole (never partially populated) and listed in `deferred.records`. Response envelope fields \u2014 `notFound`, `deferred` itself \u2014 are not counted. Omit to return every resolved record.",
+      "maximum": 1000000,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "records": {
+      "description": "Records to retrieve, each addressed by the `source` and `epmcId` of a `pubmed_europepmc_search` hit. The whole batch resolves in one Europe PMC request.",
+      "items": {
+       "description": "One record address: the Europe PMC source corpus plus its id within that corpus",
+       "properties": {
+        "epmcId": {
+         "description": "Europe PMC's own record id within that source. Copy it from the search hit's `epmcId` \u2014 for `MED` records this is the PMID; for the other sources it is an EPMC-native accession.",
+         "maxLength": 64,
+         "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+         "type": "string"
+        },
+        "source": {
+         "description": "Europe PMC source corpus \u2014 `MED` (PubMed), `PMC` (PubMed Central), `PPR` (preprint), `PAT` (patent), `AGR` (Agricola). Copy it from the search hit's `source`. `PMC` paired with a PMCID resolves whether or not the article is also indexed in PubMed, and a PubMed-indexed one comes back as its canonical `MED` record carrying that PMCID in `pmcId`.",
+         "enum": [
+          "MED",
+          "PMC",
+          "PPR",
+          "PAT",
+          "AGR"
+         ],
+         "type": "string"
+        }
+       },
+       "required": [
+        "source",
+        "epmcId"
+       ],
+       "type": "object"
+      },
+      "maxItems": 25,
+      "minItems": 1,
+      "type": "array"
+     }
+    },
+    "required": [
+     "records"
+    ],
+    "type": "object"
+   },
+   "name": "pubmed_europepmc_fetch",
+   "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "anyOf": [
+     {
+      "not": {
+       "required": [
+        "error"
+       ]
+      },
+      "required": [
+       "records"
+      ]
+     },
+     {
+      "required": [
+       "error"
+      ]
+     }
+    ],
+    "properties": {
+     "deferred": {
+      "additionalProperties": false,
+      "description": "Continuation state for records the whole-response budget withheld. Present only when `maxResponseCharacters` deferred at least one record.",
+      "properties": {
+       "deferredCount": {
+        "description": "Records that resolved but were withheld to stay under the ceiling",
+        "type": "number"
+       },
+       "maxResponseCharacters": {
+        "description": "The `maxResponseCharacters` ceiling this response was budgeted against",
+        "type": "number"
+       },
+       "nextDeferredCharacters": {
+        "description": "Serialized size of the next deferred record \u2014 the first entry in `records`, where the response stopped. Raise `maxResponseCharacters` to at least this to make progress; a smaller record further down `records` cannot be reached until this one fits.",
+        "type": "number"
+       },
+       "records": {
+        "description": "The deferred records, in response order, each as the resolved record's own `source` + `epmcId` \u2014 a `PMC` request answered by its `MED` record is listed as that `MED` pair. Pass them back as `records` to retrieve them. Never contains a pair from `notFound`.",
+        "items": {
+         "additionalProperties": false,
+         "description": "One deferred record, addressed by its own `source` + `epmcId`",
+         "properties": {
+          "epmcId": {
+           "description": "Europe PMC's internal record id",
+           "type": "string"
+          },
+          "source": {
+           "description": "Europe PMC source the record was resolved from",
+           "enum": [
+            "MED",
+            "PMC",
+            "PPR",
+            "PAT",
+            "AGR"
+           ],
+           "type": "string"
+          }
+         },
+         "required": [
+          "source",
+          "epmcId"
+         ],
+         "type": "object"
+        },
+        "type": "array"
+       },
+       "returnedCharacters": {
+        "description": "Serialized characters the returned records account for",
+        "type": "number"
+       }
+      },
+      "required": [
+       "maxResponseCharacters",
+       "returnedCharacters",
+       "deferredCount",
+       "records",
+       "nextDeferredCharacters"
+      ],
+      "type": "object"
+     },
+     "error": {
+      "additionalProperties": {},
+      "description": "Present when the call failed. Absent on success.",
+      "properties": {
+       "code": {
+        "description": "JSON-RPC error code for this failure.",
+        "maximum": 9007199254740991,
+        "minimum": -9007199254740991,
+        "type": "integer"
+       },
+       "data": {
+        "additionalProperties": {},
+        "properties": {
+         "reason": {
+          "description": "Machine-readable failure mode. Declared by this tool: `europepmc_unreachable`: Europe PMC failed on every retry attempt \u2014 unreachable, an HTTP 404 or 5xx other than a 504 timeout from its search endpoint, or an empty response with no results. `europepmc_invalid_response`: Europe PMC returned a body that could not be parsed (invalid JSON or XML). `europepmc_invalid_input`: Europe PMC rejected the request input \u2014 an error message in place of results, an empty response to a sort with an undocumented field or no asc/desc direction, or a pagination cursor it cannot read (an empty response on the last attempt the retry budget allows, or a second HTTP 503 when the first page of the same query is served). `europepmc_disabled`: Europe PMC service is disabled via EUROPEPMC_ENABLED=false. Other values are possible when a failure originates below the handler.",
+          "examples": [
+           "europepmc_unreachable",
+           "europepmc_invalid_response",
+           "europepmc_invalid_input",
+           "europepmc_disabled"
+          ],
+          "type": "string"
+         },
+         "recovery": {
+          "additionalProperties": {},
+          "description": "Actionable next step for the caller.",
+          "properties": {
+           "hint": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "hint"
+          ],
+          "type": "object"
+         },
+         "retryable": {
+          "description": "Whether retrying may succeed.",
+          "type": "boolean"
+         }
+        },
+        "type": "object"
+       },
+       "message": {
+        "description": "Human-readable description of what went wrong.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "code",
+       "message"
+      ],
+      "type": "object"
+     },
+     "notFound": {
+      "description": "Requested `source` + `epmcId` pairs Europe PMC returned no record for. Reported in full regardless of where a `maxResponseCharacters` cut lands \u2014 these are misses, not deferrals.",
+      "items": {
+       "additionalProperties": false,
+       "description": "One record address: the Europe PMC source corpus plus its id within that corpus",
+       "properties": {
+        "epmcId": {
+         "description": "Europe PMC's own record id within that source. Copy it from the search hit's `epmcId` \u2014 for `MED` records this is the PMID; for the other sources it is an EPMC-native accession.",
+         "maxLength": 64,
+         "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+         "type": "string"
+        },
+        "source": {
+         "description": "Europe PMC source corpus \u2014 `MED` (PubMed), `PMC` (PubMed Central), `PPR` (preprint), `PAT` (patent), `AGR` (Agricola). Copy it from the search hit's `source`. `PMC` paired with a PMCID resolves whether or not the article is also indexed in PubMed, and a PubMed-indexed one comes back as its canonical `MED` record carrying that PMCID in `pmcId`.",
+         "enum": [
+          "MED",
+          "PMC",
+          "PPR",
+          "PAT",
+          "AGR"
+         ],
+         "type": "string"
+        }
+       },
+       "required": [
+        "source",
+        "epmcId"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "notice": {
+      "description": "Guidance when one or more requested records could not be resolved, or when `maxResponseCharacters` deferred records \u2014 naming how to retrieve them. Absent when every requested record came back.",
+      "type": "string"
+     },
+     "records": {
+      "description": "Resolved records, in the order Europe PMC returned them. Under a `maxResponseCharacters` budget, only the leading records that fit; `deferred.records` lists the rest.",
+      "items": {
+       "additionalProperties": false,
+       "description": "Complete Europe PMC record",
+       "properties": {
+        "abstract": {
+         "description": "Complete abstract as display-ready plain text \u2014 JATS/HTML markup stripped and HTML entities decoded, never truncated. Omitted when Europe PMC carries no abstract for the record.",
+         "type": "string"
+        },
+        "authors": {
+         "description": "Formatted author string as display-ready plain text \u2014 JATS/HTML markup stripped and HTML entities decoded.",
+         "type": "string"
+        },
+        "citedByCount": {
+         "description": "Citation count reported by Europe PMC",
+         "type": "number"
+        },
+        "doi": {
+         "description": "DOI when present, cased as Europe PMC reports it. DOIs are case-insensitive by spec and no case normalization is applied here, so the same DOI can arrive in a different case from `pubmed_fetch_articles` (Europe PMC `10.1056/nejmoa2212948`, NCBI `10.1056/NEJMoa2212948`) \u2014 a byte-for-byte comparison across the two reports a false mismatch.",
+         "type": "string"
+        },
+        "epmcId": {
+         "description": "Europe PMC's internal record id",
+         "type": "string"
+        },
+        "epmcUrl": {
+         "description": "Europe PMC article URL",
+         "type": "string"
+        },
+        "firstPublicationDate": {
+         "description": "First publication date (ISO YYYY-MM-DD)",
+         "type": "string"
+        },
+        "hasFullTextXml": {
+         "description": "Whether Europe PMC publishes a fullTextXML for this record. Derived from `inPMC` \u2014 only records with a PMC counterpart have JATS via Europe PMC.",
+         "type": "boolean"
+        },
+        "isOpenAccess": {
+         "description": "Whether Europe PMC reports the record as open access",
+         "type": "boolean"
+        },
+        "journal": {
+         "description": "Journal title as display-ready plain text \u2014 JATS/HTML markup stripped and HTML entities decoded.",
+         "type": "string"
+        },
+        "pmcId": {
+         "description": "PMC ID when present in PMC",
+         "type": "string"
+        },
+        "pmid": {
+         "description": "PMID when present in PubMed",
+         "type": "string"
+        },
+        "pubYear": {
+         "description": "Publication year",
+         "type": "string"
+        },
+        "source": {
+         "description": "Europe PMC source the record was resolved from",
+         "enum": [
+          "MED",
+          "PMC",
+          "PPR",
+          "PAT",
+          "AGR"
+         ],
+         "type": "string"
+        },
+        "title": {
+         "description": "Record title as display-ready plain text \u2014 JATS/HTML markup stripped and HTML entities decoded.",
+         "type": "string"
+        }
+       },
+       "required": [
+        "source",
+        "epmcId",
+        "epmcUrl"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "truncated": {
+      "description": "True when `maxResponseCharacters` withheld at least one resolved record. Absent when the response carries every record that resolved. The continuation state is in `deferred`.",
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   }
+  }
+ ]
+}

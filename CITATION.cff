@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use biomed-mcp-receipts, please cite it as below."
+title: "biomed-mcp-receipts: checking biomedical MCP servers against primary sources"
+type: software
+authors:
+  - family-names: Hemedan
+    given-names: Ahmed
+version: 0.1.0
+date-released: 2026-10-07
+license: Apache-2.0
+repository-code: "https://github.com/a7med7emedan/biomed-mcp-receipts"
+keywords:
+  - model context protocol
+  - benchmark
+  - biomedical data
+  - provenance
+  - RO-Crate
+  - clinical trials
+  - PubMed
+abstract: >-
+  biomed-mcp-receipts calls the tools of biomedical Model Context Protocol servers directly, asks the
+  primary source the same question during the same run, and scores the two answers on seven
+  dimensions: conformance, schema, correctness, freshness, attribution, robustness and stability.
+  Every check is written as a hash-chained receipt, and each run is described as an RO-Crate.

@@ -1,0 +1,55 @@
+name: docker
+
+# Builds the image on every push and pull request, proves it works, and publishes it to GHCR from
+# main. Release tags publish versioned images and :latest through release.yml.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    name: build, check and publish the image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: demo inside the image
+        run: docker run --rm "$(echo '${{ steps.meta.outputs.tags }}' | head -1)" demo
+      - name: pinned server runtimes are present inside the image
+        run: >-
+          docker run --rm --entrypoint sh "$(echo '${{ steps.meta.outputs.tags }}' | head -1)"
+          -c "biomcp --version && node --version && npx --version"

@@ -1,0 +1,49 @@
+# Servers under test, each pinned to an exact published version.
+# Tool names in the adapters were read from each server's own tools/list at these versions.
+# Bump a version only together with a re-check of its adapter.
+
+servers:
+  - id: planted
+    adapter: planted
+    command: python
+    args: ["-m", "biomed_mcp_receipts.planted"]
+    env: {PLANTED_FAULTS: "none"}
+    package: biomed-mcp-receipts (built in)
+    version: "0.1.0"
+    repo: https://github.com/a7med7emedan/biomed-mcp-receipts
+    licence: Apache-2.0
+    taskset: planted
+    timeout_s: 30
+    capabilities: [trial.lookup, literature.search]
+
+  - id: biomcp
+    adapter: biomcp
+    command: biomcp
+    args: ["serve"]
+    package: biomcp-cli (PyPI)
+    version: "0.9.1"
+    repo: https://github.com/genomoncology/biomcp
+    licence: MIT
+    capabilities: [trial.lookup, literature.search]
+
+  - id: pubmed
+    adapter: pubmed
+    command: npx
+    args: ["-y", "@cyanheads/pubmed-mcp-server@2.10.20"]
+    env: {MCP_TRANSPORT_TYPE: stdio, MCP_LOG_LEVEL: error}
+    package: "@cyanheads/pubmed-mcp-server (npm)"
+    version: "2.10.20"
+    repo: https://github.com/cyanheads/pubmed-mcp-server
+    licence: Apache-2.0
+    capabilities: [literature.search]
+
+  - id: clinicaltrials
+    adapter: clinicaltrials
+    command: npx
+    args: ["-y", "clinicaltrialsgov-mcp-server@2.9.11"]
+    env: {MCP_TRANSPORT_TYPE: stdio, MCP_LOG_LEVEL: error}
+    package: clinicaltrialsgov-mcp-server (npm)
+    version: "2.9.11"
+    repo: https://github.com/cyanheads/clinicaltrialsgov-mcp-server
+    licence: Apache-2.0
+    capabilities: [trial.lookup]

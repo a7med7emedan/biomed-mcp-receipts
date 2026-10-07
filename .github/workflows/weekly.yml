@@ -1,0 +1,46 @@
+name: weekly live run
+
+# Scores every pinned server against the live primary sources, records the oracle responses as
+# cassettes, and keeps the run as a private workflow artifact. Nothing is published from here:
+# third-party scores go to each maintainer first, with 14 days to respond.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: uv sync --locked
+      - run: uv tool install "biomcp-cli==0.9.1" && echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: run every server against the live sources
+        run: uv run bmr run --oracle record --out runs
+      - name: verify every receipt
+        run: |
+          for f in runs/*/receipts.jsonl; do
+            uv run bmr verify "$(dirname "$f")"
+          done
+      - name: summary
+        if: always()
+        run: cat runs/*/summary.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: weekly-run-${{ github.run_id }}
+          path: runs/
+          retention-days: 90

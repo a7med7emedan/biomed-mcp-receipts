@@ -1,0 +1,19 @@
+# docker compose run --rm demo     prove the bench catches every planted fault (offline)
+# docker compose run --rm bench    score every pinned server against the live primary sources
+# On Linux, first run: mkdir -p runs && chmod 777 runs  (the container user is uid 10001)
+services:
+  demo:
+    build: .
+    image: biomed-mcp-receipts:local
+    command: ["demo", "--out", "runs"]
+    volumes:
+      - ./runs:/home/bench/runs
+
+  bench:
+    build: .
+    image: biomed-mcp-receipts:local
+    command: ["run", "--oracle", "record", "--out", "runs"]
+    environment:
+      - NCBI_API_KEY
+    volumes:
+      - ./runs:/home/bench/runs

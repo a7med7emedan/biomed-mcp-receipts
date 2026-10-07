@@ -1,0 +1,38 @@
+# Core tasks for real servers. Gold answers are not stored here: the oracle asks the
+# primary source at run time, so these tasks never go stale.
+
+tasks:
+  - id: trial-actt1
+    capability: trial.lookup
+    params: {nct_id: NCT04280705}
+    note: ACTT-1, remdesivir for COVID-19, a long-closed trial with a stable record
+
+  - id: trial-bnt162b2
+    capability: trial.lookup
+    params: {nct_id: NCT04368728}
+    note: BNT162b2 phase 1/2/3, a large record with many updates
+
+  - id: lit-lrrk2-autophagy-2025q1
+    capability: literature.search
+    params: {query: LRRK2 autophagy, since: "2025-01-01", until: "2025-03-31", limit: 20}
+    note: a closed window, so the gold set should no longer change
+
+  - id: lit-parkinson-boolean-2025
+    capability: literature.search
+    params: {query: Parkinson Boolean network model, since: "2025-01-01", until: "2025-12-31", limit: 20}
+
+  - id: robust-trial-not-found
+    capability: trial.lookup
+    params: {nct_id: NCT00000000}
+    expect: not_found
+    note: well formed, does not exist; a server must not invent a record
+
+  - id: robust-trial-malformed
+    capability: trial.lookup
+    params: {nct_id: NCT123}
+    expect: invalid_input
+
+  - id: robust-lit-nonsense
+    capability: literature.search
+    params: {query: qzxvbnmlkj wpqrtzz, since: "2025-01-01", until: "2025-12-31", limit: 20}
+    expect: no_results
